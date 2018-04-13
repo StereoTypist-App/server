@@ -10974,7 +10974,11 @@ const $ = require('jquery')
 const connection = new MatchConnection()
 
 $(document).ready(() => {
-    connection.joinMatch('1234')
+    connection.joinMatch('1234',(data) => {
+        console.log("Match Done",data)
+    },(data) => {
+        console.log("Received data",data)
+    })
     setTimeout(() => {
         connection.startMatch()
     },10000)
@@ -10992,7 +10996,7 @@ class MatchConnection {
         this.cable = ActionCable.createConsumer('ws://localhost:3000/cable')
     }
 
-    joinMatch(matchId) {
+    joinMatch(matchId,doneCallback,dataCallback) {
         this.matchId = matchId
         this.channel = this.cable.subscriptions.create({channel: "MatchChannel", match_id: matchId },{
             connected: () => {
@@ -11002,7 +11006,10 @@ class MatchConnection {
                 console.log("Cable Disconnected")
             },
             received: (data) => {
-                console.log("Received: " + data)
+                if(data.complete) {
+                    return doneCallback(data)
+                }
+                dataCallback(data)
             },
             rejected: () => {
                 console.log("Data Rejected")
@@ -11011,12 +11018,12 @@ class MatchConnection {
     }
 
     sendWPM(wpm) {
-        this.channel.send({wpm: wpm, match_id: this.matchId})
+        this.channel.send({wpm: wpm})
         console.log("Sent " + wpm + " wpm")
     }
 
     startMatch() {
-        this.channel.send({start: true, match_id: this.matchId})
+        this.channel.send({start: true})
         console.log("Sent start match")
     }
 }

@@ -17,7 +17,13 @@ class MatchChannel < ApplicationCable::Channel
   def receive(data)
     if data["start"] then
       @@matches[params[:match_id]]["active"] = true
-      puts "Current Match Activated: #{@@matches[data["match_id"]]["active"]}"
+      puts "Current Match Activated: #{@@matches[params[:match_id]]["active"]}"
+      Thread.new do
+        sleep 15 #change later
+        @@matches[params[:match_id]]["active"] = false
+        puts "Match Over #{@@matches[params[:match_id]]}"
+        ActionCable.server.broadcast "match:#{params[:match_id]}", {complete: true, result: @@matches[params[:match_id]]}
+      end
       return
     end
     if @@matches[params[:match_id]]["active"] then
