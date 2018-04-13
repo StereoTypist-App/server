@@ -11007,6 +11007,7 @@ class MatchConnection {
             },
             received: (data) => {
                 if(data.complete) {
+                    this.channel.unsubscribe()
                     return doneCallback(data)
                 }
                 dataCallback(data)
