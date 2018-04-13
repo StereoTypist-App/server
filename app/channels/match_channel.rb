@@ -10,6 +10,12 @@ class MatchChannel < ApplicationCable::Channel
       @@matches[params[:match_id]] = Hash.new
     end
 
+    #don't allow users to join active matches once started
+    if @@matches[params[:match_id]]["active"] == true then
+      reject
+      return
+    end
+
     @user_display_name =  "Anon#{SecureRandom.hex[0..6]}"
     if current_user != nil then
       @user_display_name = current_user.display_name
