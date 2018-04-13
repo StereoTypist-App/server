@@ -43,6 +43,7 @@ class MatchChannel < ApplicationCable::Channel
       return
     end
     if @@matches[params[:match_id]]["active"] then
+      @@matches[params[:match_id]][@user_display_name] = data["wpm"]
       puts "Received WPM: #{data["wpm"]} from #{@user_display_name}"
     end
   end
