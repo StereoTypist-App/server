@@ -1,3 +1,5 @@
+require 'securerandom'
+
 class MatchChannel < ApplicationCable::Channel
 
   @@matches = Hash.new
@@ -8,7 +10,12 @@ class MatchChannel < ApplicationCable::Channel
       @@matches[params[:match_id]] = Hash.new
     end
 
-    puts "Subscription for match #{params[:match_id]}"
+    user_display_name =  "Anon#{SecureRandom.hex[0..6]}"
+    if current_user != nil then
+      user_display_name = current_user.display_name
+    end
+
+    puts "Subscription for match #{params[:match_id]} user: #{user_display_name}"
 
     stream_from "match:#{params[:match_id]}"
 
@@ -28,8 +35,6 @@ class MatchChannel < ApplicationCable::Channel
     end
     if @@matches[params[:match_id]]["active"] then
       puts "Received WPM: #{data["wpm"]}"
-    else
-      puts "Match not active, reject WPM."
     end
   end
 
