@@ -4,6 +4,8 @@ class MatchChannel < ApplicationCable::Channel
 
   @@matches = Hash.new
 
+  MATCH_DURATION = 15
+
   def subscribed
     #if not in matches, add to it
     if !@@matches.key?(params[:match_id]) then
@@ -35,7 +37,7 @@ class MatchChannel < ApplicationCable::Channel
       @@matches[params[:match_id]]["active"] = true
       puts "Current Match Activated: #{@@matches[params[:match_id]]["active"]}"
       Thread.new do
-        sleep 15 #change later
+        sleep MATCH_DURATION + 1 #change later
         @@matches[params[:match_id]]["active"] = false
         puts "Match Over #{@@matches[params[:match_id]]}"
         ActionCable.server.broadcast "match:#{params[:match_id]}", {complete: true, result: @@matches[params[:match_id]]}
@@ -45,6 +47,7 @@ class MatchChannel < ApplicationCable::Channel
     if @@matches[params[:match_id]]["active"] then
       @@matches[params[:match_id]][@user_display_name] = data["wpm"]
       puts "Received WPM: #{data["wpm"]} from #{@user_display_name}"
+      ActionCable.server.broadcast "match:#{params[:match_id]}", {complete: false, result: @@matches[params[:match_id]]}
     end
   end
 
