@@ -53,7 +53,13 @@ class MatchChannel < ApplicationCable::Channel
   end
 
   def unsubscribed
-    @@matches.delete[params[:match_id]]
+    if current_user != nil then
+      result = Result.new
+      result.wpm = @@matches[params[:match_id]][@user_display_name]
+      result.user = current_user
+      result.save
+    end
+    @@matches[params[:match_id]].delete([@user_display_name])
     # Any cleanup needed when channel is unsubscribed
   end
 end
