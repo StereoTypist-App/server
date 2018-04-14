@@ -1,0 +1,13 @@
+<% if @user != nil then %>
+    <h1><%= @user.display_name %>'s profile</h1>
+    <p>Typing here since <%= @user.created_at %></p>
+
+    <h2><%= @user.display_name %>'s top results</h2>
+    <ul>
+    <% @results.each do |result| %>
+    <li>On <%= result.created_at %>: <%= result.wpm %> WPM</li>
+    <% end %>
+    </ul>
+<% else %>
+    <h1>Profile not found</h1>
+<% end %>
