@@ -37,14 +37,16 @@ class MatchChannel < ApplicationCable::Channel
       end
       @@matches[params[:match_id]]["active"] = true
       puts "Current Match Activated: #{@@matches[params[:match_id]]["active"]}"
+      ActionCable.server.broadcast "match:#{params[:match_id]}", {started: true}
       Thread.new do
         sleep MATCH_DURATION + DELTA #change later
-        @@matches[params[:match_id]]["active"] = false
+        @@matches[params[:match_id]].delete("active")
         puts "Match Over #{@@matches[params[:match_id]]}"
         ActionCable.server.broadcast "match:#{params[:match_id]}", {complete: true, result: @@matches[params[:match_id]]}
       end
       return
     end
+    
     if @@matches[params[:match_id]]["active"] then
       @@matches[params[:match_id]][@user_display_name] = data["wpm"]
       puts "Received WPM: #{data["wpm"]} from #{@user_display_name}"
@@ -59,7 +61,7 @@ class MatchChannel < ApplicationCable::Channel
       result.user = current_user
       result.save
     end
-    @@matches[params[:match_id]].delete([@user_display_name])
-    # Any cleanup needed when channel is unsubscribed
+    
+    @@matches[params[:match_id]].delete(@user_display_name)
   end
 end
