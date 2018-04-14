@@ -1,0 +1,6 @@
+<h1>Leaderboard</h1>
+<ul>
+<% @leaderboard.each do |result| %>
+<li><%= result.user.display_name %>: <%= result.wpm %> WPM</li>
+<% end %>
+</ul>
