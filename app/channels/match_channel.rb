@@ -3,6 +3,7 @@ require 'securerandom'
 class MatchChannel < ApplicationCable::Channel
 
   @@matches = Hash.new
+  @@texts = Array.new
 
   MATCH_DURATION = 15
   DELTA = 0.5
@@ -11,6 +12,7 @@ class MatchChannel < ApplicationCable::Channel
     #if not in matches, add to it
     if !@@matches.key?(params[:match_id]) then
       @@matches[params[:match_id]] = Hash.new
+      @@texts = load_text(1)
     end
 
     #don't allow users to join active matches once started
@@ -37,8 +39,7 @@ class MatchChannel < ApplicationCable::Channel
       end
       @@matches[params[:match_id]]["active"] = true
       puts "Current Match Activated: #{@@matches[params[:match_id]]["active"]}"
-      texts = load_text(1)
-      ActionCable.server.broadcast "match:#{params[:match_id]}", {started: true, texts: texts}
+      ActionCable.server.broadcast "match:#{params[:match_id]}", {started: true, texts: @@texts}
       Thread.new do
         sleep MATCH_DURATION + DELTA #change later
         @@matches[params[:match_id]].delete("active")
