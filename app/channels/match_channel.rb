@@ -37,7 +37,8 @@ class MatchChannel < ApplicationCable::Channel
       end
       @@matches[params[:match_id]]["active"] = true
       puts "Current Match Activated: #{@@matches[params[:match_id]]["active"]}"
-      ActionCable.server.broadcast "match:#{params[:match_id]}", {started: true}
+      texts = load_text(1)
+      ActionCable.server.broadcast "match:#{params[:match_id]}", {started: true, texts: texts}
       Thread.new do
         sleep MATCH_DURATION + DELTA #change later
         @@matches[params[:match_id]].delete("active")
@@ -63,5 +64,12 @@ class MatchChannel < ApplicationCable::Channel
     end
     
     @@matches[params[:match_id]].delete(@user_display_name)
+  end
+
+  def load_text(index)
+    text_json_file = File.join(Rails.root, "app", "assets", "texts", "#{index}.json")
+    text_json = File.read(text_json_file)
+    texts = JSON.parse(text_json)
+    return texts
   end
 end
