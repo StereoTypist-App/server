@@ -1,0 +1,21 @@
+.game-container {
+  min-height: 100vh;
+  background-color: #1F2B5E; }
+
+.light-text {
+  color: #B3BFE6 !important; }
+
+.dark-text {
+  color: #6379BD !important; }
+
+.bg-st-light {
+  background-color: #B3BFE6; }
+
+.bg-st-dark {
+  background-color: #6379BD; }
+
+#promptText {
+  font-size: 20px;
+  font-weight: 400; }
+
+/*# sourceMappingURL=game.css.map */

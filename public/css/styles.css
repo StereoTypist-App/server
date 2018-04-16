@@ -1,0 +1,18 @@
+.font-400 {
+  font-weight: 400; }
+
+.no-shadow {
+  box-shadow: none !important; }
+
+.st-button {
+  min-width: 100px;
+  background-color: #B3BFE6;
+  padding: 10px;
+  border-radius: 0.2em;
+  border: 0 solid transparent;
+  transition: background-color 200ms ease-in-out; }
+  .st-button:hover {
+    cursor: pointer;
+    background-color: #BBDEFB; }
+
+/*# sourceMappingURL=styles.css.map */

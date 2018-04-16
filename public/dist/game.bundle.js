@@ -1,4 +1,703 @@
 (function(){function r(e,n,t){function o(i,f){if(!n[i]){if(!e[i]){var c="function"==typeof require&&require;if(!f&&c)return c(i,!0);if(u)return u(i,!0);var a=new Error("Cannot find module '"+i+"'");throw a.code="MODULE_NOT_FOUND",a}var p=n[i]={exports:{}};e[i][0].call(p.exports,function(r){var n=e[i][1][r];return o(n||r)},p,p.exports,r,e,n,t)}return n[i].exports}for(var u="function"==typeof require&&require,i=0;i<t.length;i++)o(t[i]);return o}return r})()({1:[function(require,module,exports){
+(function() {
+  var context = this;
+
+  (function() {
+    (function() {
+      var slice = [].slice;
+
+      this.ActionCable = {
+        INTERNAL: {
+          "message_types": {
+            "welcome": "welcome",
+            "ping": "ping",
+            "confirmation": "confirm_subscription",
+            "rejection": "reject_subscription"
+          },
+          "default_mount_path": "/cable",
+          "protocols": ["actioncable-v1-json", "actioncable-unsupported"]
+        },
+        WebSocket: window.WebSocket,
+        logger: window.console,
+        createConsumer: function(url) {
+          var ref;
+          if (url == null) {
+            url = (ref = this.getConfig("url")) != null ? ref : this.INTERNAL.default_mount_path;
+          }
+          return new ActionCable.Consumer(this.createWebSocketURL(url));
+        },
+        getConfig: function(name) {
+          var element;
+          element = document.head.querySelector("meta[name='action-cable-" + name + "']");
+          return element != null ? element.getAttribute("content") : void 0;
+        },
+        createWebSocketURL: function(url) {
+          var a;
+          if (url && !/^wss?:/i.test(url)) {
+            a = document.createElement("a");
+            a.href = url;
+            a.href = a.href;
+            a.protocol = a.protocol.replace("http", "ws");
+            return a.href;
+          } else {
+            return url;
+          }
+        },
+        startDebugging: function() {
+          return this.debugging = true;
+        },
+        stopDebugging: function() {
+          return this.debugging = null;
+        },
+        log: function() {
+          var messages, ref;
+          messages = 1 <= arguments.length ? slice.call(arguments, 0) : [];
+          if (this.debugging) {
+            messages.push(Date.now());
+            return (ref = this.logger).log.apply(ref, ["[ActionCable]"].concat(slice.call(messages)));
+          }
+        }
+      };
+
+    }).call(this);
+  }).call(context);
+
+  var ActionCable = context.ActionCable;
+
+  (function() {
+    (function() {
+      var bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; };
+
+      ActionCable.ConnectionMonitor = (function() {
+        var clamp, now, secondsSince;
+
+        ConnectionMonitor.pollInterval = {
+          min: 3,
+          max: 30
+        };
+
+        ConnectionMonitor.staleThreshold = 6;
+
+        function ConnectionMonitor(connection) {
+          this.connection = connection;
+          this.visibilityDidChange = bind(this.visibilityDidChange, this);
+          this.reconnectAttempts = 0;
+        }
+
+        ConnectionMonitor.prototype.start = function() {
+          if (!this.isRunning()) {
+            this.startedAt = now();
+            delete this.stoppedAt;
+            this.startPolling();
+            document.addEventListener("visibilitychange", this.visibilityDidChange);
+            return ActionCable.log("ConnectionMonitor started. pollInterval = " + (this.getPollInterval()) + " ms");
+          }
+        };
+
+        ConnectionMonitor.prototype.stop = function() {
+          if (this.isRunning()) {
+            this.stoppedAt = now();
+            this.stopPolling();
+            document.removeEventListener("visibilitychange", this.visibilityDidChange);
+            return ActionCable.log("ConnectionMonitor stopped");
+          }
+        };
+
+        ConnectionMonitor.prototype.isRunning = function() {
+          return (this.startedAt != null) && (this.stoppedAt == null);
+        };
+
+        ConnectionMonitor.prototype.recordPing = function() {
+          return this.pingedAt = now();
+        };
+
+        ConnectionMonitor.prototype.recordConnect = function() {
+          this.reconnectAttempts = 0;
+          this.recordPing();
+          delete this.disconnectedAt;
+          return ActionCable.log("ConnectionMonitor recorded connect");
+        };
+
+        ConnectionMonitor.prototype.recordDisconnect = function() {
+          this.disconnectedAt = now();
+          return ActionCable.log("ConnectionMonitor recorded disconnect");
+        };
+
+        ConnectionMonitor.prototype.startPolling = function() {
+          this.stopPolling();
+          return this.poll();
+        };
+
+        ConnectionMonitor.prototype.stopPolling = function() {
+          return clearTimeout(this.pollTimeout);
+        };
+
+        ConnectionMonitor.prototype.poll = function() {
+          return this.pollTimeout = setTimeout((function(_this) {
+            return function() {
+              _this.reconnectIfStale();
+              return _this.poll();
+            };
+          })(this), this.getPollInterval());
+        };
+
+        ConnectionMonitor.prototype.getPollInterval = function() {
+          var interval, max, min, ref;
+          ref = this.constructor.pollInterval, min = ref.min, max = ref.max;
+          interval = 5 * Math.log(this.reconnectAttempts + 1);
+          return Math.round(clamp(interval, min, max) * 1000);
+        };
+
+        ConnectionMonitor.prototype.reconnectIfStale = function() {
+          if (this.connectionIsStale()) {
+            ActionCable.log("ConnectionMonitor detected stale connection. reconnectAttempts = " + this.reconnectAttempts + ", pollInterval = " + (this.getPollInterval()) + " ms, time disconnected = " + (secondsSince(this.disconnectedAt)) + " s, stale threshold = " + this.constructor.staleThreshold + " s");
+            this.reconnectAttempts++;
+            if (this.disconnectedRecently()) {
+              return ActionCable.log("ConnectionMonitor skipping reopening recent disconnect");
+            } else {
+              ActionCable.log("ConnectionMonitor reopening");
+              return this.connection.reopen();
+            }
+          }
+        };
+
+        ConnectionMonitor.prototype.connectionIsStale = function() {
+          var ref;
+          return secondsSince((ref = this.pingedAt) != null ? ref : this.startedAt) > this.constructor.staleThreshold;
+        };
+
+        ConnectionMonitor.prototype.disconnectedRecently = function() {
+          return this.disconnectedAt && secondsSince(this.disconnectedAt) < this.constructor.staleThreshold;
+        };
+
+        ConnectionMonitor.prototype.visibilityDidChange = function() {
+          if (document.visibilityState === "visible") {
+            return setTimeout((function(_this) {
+              return function() {
+                if (_this.connectionIsStale() || !_this.connection.isOpen()) {
+                  ActionCable.log("ConnectionMonitor reopening stale connection on visibilitychange. visbilityState = " + document.visibilityState);
+                  return _this.connection.reopen();
+                }
+              };
+            })(this), 200);
+          }
+        };
+
+        now = function() {
+          return new Date().getTime();
+        };
+
+        secondsSince = function(time) {
+          return (now() - time) / 1000;
+        };
+
+        clamp = function(number, min, max) {
+          return Math.max(min, Math.min(max, number));
+        };
+
+        return ConnectionMonitor;
+
+      })();
+
+    }).call(this);
+    (function() {
+      var i, message_types, protocols, ref, supportedProtocols, unsupportedProtocol,
+        slice = [].slice,
+        bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; },
+        indexOf = [].indexOf || function(item) { for (var i = 0, l = this.length; i < l; i++) { if (i in this && this[i] === item) return i; } return -1; };
+
+      ref = ActionCable.INTERNAL, message_types = ref.message_types, protocols = ref.protocols;
+
+      supportedProtocols = 2 <= protocols.length ? slice.call(protocols, 0, i = protocols.length - 1) : (i = 0, []), unsupportedProtocol = protocols[i++];
+
+      ActionCable.Connection = (function() {
+        Connection.reopenDelay = 500;
+
+        function Connection(consumer) {
+          this.consumer = consumer;
+          this.open = bind(this.open, this);
+          this.subscriptions = this.consumer.subscriptions;
+          this.monitor = new ActionCable.ConnectionMonitor(this);
+          this.disconnected = true;
+        }
+
+        Connection.prototype.send = function(data) {
+          if (this.isOpen()) {
+            this.webSocket.send(JSON.stringify(data));
+            return true;
+          } else {
+            return false;
+          }
+        };
+
+        Connection.prototype.open = function() {
+          if (this.isActive()) {
+            ActionCable.log("Attempted to open WebSocket, but existing socket is " + (this.getState()));
+            return false;
+          } else {
+            ActionCable.log("Opening WebSocket, current state is " + (this.getState()) + ", subprotocols: " + protocols);
+            if (this.webSocket != null) {
+              this.uninstallEventHandlers();
+            }
+            this.webSocket = new ActionCable.WebSocket(this.consumer.url, protocols);
+            this.installEventHandlers();
+            this.monitor.start();
+            return true;
+          }
+        };
+
+        Connection.prototype.close = function(arg) {
+          var allowReconnect, ref1;
+          allowReconnect = (arg != null ? arg : {
+            allowReconnect: true
+          }).allowReconnect;
+          if (!allowReconnect) {
+            this.monitor.stop();
+          }
+          if (this.isActive()) {
+            return (ref1 = this.webSocket) != null ? ref1.close() : void 0;
+          }
+        };
+
+        Connection.prototype.reopen = function() {
+          var error;
+          ActionCable.log("Reopening WebSocket, current state is " + (this.getState()));
+          if (this.isActive()) {
+            try {
+              return this.close();
+            } catch (error1) {
+              error = error1;
+              return ActionCable.log("Failed to reopen WebSocket", error);
+            } finally {
+              ActionCable.log("Reopening WebSocket in " + this.constructor.reopenDelay + "ms");
+              setTimeout(this.open, this.constructor.reopenDelay);
+            }
+          } else {
+            return this.open();
+          }
+        };
+
+        Connection.prototype.getProtocol = function() {
+          var ref1;
+          return (ref1 = this.webSocket) != null ? ref1.protocol : void 0;
+        };
+
+        Connection.prototype.isOpen = function() {
+          return this.isState("open");
+        };
+
+        Connection.prototype.isActive = function() {
+          return this.isState("open", "connecting");
+        };
+
+        Connection.prototype.isProtocolSupported = function() {
+          var ref1;
+          return ref1 = this.getProtocol(), indexOf.call(supportedProtocols, ref1) >= 0;
+        };
+
+        Connection.prototype.isState = function() {
+          var ref1, states;
+          states = 1 <= arguments.length ? slice.call(arguments, 0) : [];
+          return ref1 = this.getState(), indexOf.call(states, ref1) >= 0;
+        };
+
+        Connection.prototype.getState = function() {
+          var ref1, state, value;
+          for (state in WebSocket) {
+            value = WebSocket[state];
+            if (value === ((ref1 = this.webSocket) != null ? ref1.readyState : void 0)) {
+              return state.toLowerCase();
+            }
+          }
+          return null;
+        };
+
+        Connection.prototype.installEventHandlers = function() {
+          var eventName, handler;
+          for (eventName in this.events) {
+            handler = this.events[eventName].bind(this);
+            this.webSocket["on" + eventName] = handler;
+          }
+        };
+
+        Connection.prototype.uninstallEventHandlers = function() {
+          var eventName;
+          for (eventName in this.events) {
+            this.webSocket["on" + eventName] = function() {};
+          }
+        };
+
+        Connection.prototype.events = {
+          message: function(event) {
+            var identifier, message, ref1, type;
+            if (!this.isProtocolSupported()) {
+              return;
+            }
+            ref1 = JSON.parse(event.data), identifier = ref1.identifier, message = ref1.message, type = ref1.type;
+            switch (type) {
+              case message_types.welcome:
+                this.monitor.recordConnect();
+                return this.subscriptions.reload();
+              case message_types.ping:
+                return this.monitor.recordPing();
+              case message_types.confirmation:
+                return this.subscriptions.notify(identifier, "connected");
+              case message_types.rejection:
+                return this.subscriptions.reject(identifier);
+              default:
+                return this.subscriptions.notify(identifier, "received", message);
+            }
+          },
+          open: function() {
+            ActionCable.log("WebSocket onopen event, using '" + (this.getProtocol()) + "' subprotocol");
+            this.disconnected = false;
+            if (!this.isProtocolSupported()) {
+              ActionCable.log("Protocol is unsupported. Stopping monitor and disconnecting.");
+              return this.close({
+                allowReconnect: false
+              });
+            }
+          },
+          close: function(event) {
+            ActionCable.log("WebSocket onclose event");
+            if (this.disconnected) {
+              return;
+            }
+            this.disconnected = true;
+            this.monitor.recordDisconnect();
+            return this.subscriptions.notifyAll("disconnected", {
+              willAttemptReconnect: this.monitor.isRunning()
+            });
+          },
+          error: function() {
+            return ActionCable.log("WebSocket onerror event");
+          }
+        };
+
+        return Connection;
+
+      })();
+
+    }).call(this);
+    (function() {
+      var slice = [].slice;
+
+      ActionCable.Subscriptions = (function() {
+        function Subscriptions(consumer) {
+          this.consumer = consumer;
+          this.subscriptions = [];
+        }
+
+        Subscriptions.prototype.create = function(channelName, mixin) {
+          var channel, params, subscription;
+          channel = channelName;
+          params = typeof channel === "object" ? channel : {
+            channel: channel
+          };
+          subscription = new ActionCable.Subscription(this.consumer, params, mixin);
+          return this.add(subscription);
+        };
+
+        Subscriptions.prototype.add = function(subscription) {
+          this.subscriptions.push(subscription);
+          this.consumer.ensureActiveConnection();
+          this.notify(subscription, "initialized");
+          this.sendCommand(subscription, "subscribe");
+          return subscription;
+        };
+
+        Subscriptions.prototype.remove = function(subscription) {
+          this.forget(subscription);
+          if (!this.findAll(subscription.identifier).length) {
+            this.sendCommand(subscription, "unsubscribe");
+          }
+          return subscription;
+        };
+
+        Subscriptions.prototype.reject = function(identifier) {
+          var i, len, ref, results, subscription;
+          ref = this.findAll(identifier);
+          results = [];
+          for (i = 0, len = ref.length; i < len; i++) {
+            subscription = ref[i];
+            this.forget(subscription);
+            this.notify(subscription, "rejected");
+            results.push(subscription);
+          }
+          return results;
+        };
+
+        Subscriptions.prototype.forget = function(subscription) {
+          var s;
+          this.subscriptions = (function() {
+            var i, len, ref, results;
+            ref = this.subscriptions;
+            results = [];
+            for (i = 0, len = ref.length; i < len; i++) {
+              s = ref[i];
+              if (s !== subscription) {
+                results.push(s);
+              }
+            }
+            return results;
+          }).call(this);
+          return subscription;
+        };
+
+        Subscriptions.prototype.findAll = function(identifier) {
+          var i, len, ref, results, s;
+          ref = this.subscriptions;
+          results = [];
+          for (i = 0, len = ref.length; i < len; i++) {
+            s = ref[i];
+            if (s.identifier === identifier) {
+              results.push(s);
+            }
+          }
+          return results;
+        };
+
+        Subscriptions.prototype.reload = function() {
+          var i, len, ref, results, subscription;
+          ref = this.subscriptions;
+          results = [];
+          for (i = 0, len = ref.length; i < len; i++) {
+            subscription = ref[i];
+            results.push(this.sendCommand(subscription, "subscribe"));
+          }
+          return results;
+        };
+
+        Subscriptions.prototype.notifyAll = function() {
+          var args, callbackName, i, len, ref, results, subscription;
+          callbackName = arguments[0], args = 2 <= arguments.length ? slice.call(arguments, 1) : [];
+          ref = this.subscriptions;
+          results = [];
+          for (i = 0, len = ref.length; i < len; i++) {
+            subscription = ref[i];
+            results.push(this.notify.apply(this, [subscription, callbackName].concat(slice.call(args))));
+          }
+          return results;
+        };
+
+        Subscriptions.prototype.notify = function() {
+          var args, callbackName, i, len, results, subscription, subscriptions;
+          subscription = arguments[0], callbackName = arguments[1], args = 3 <= arguments.length ? slice.call(arguments, 2) : [];
+          if (typeof subscription === "string") {
+            subscriptions = this.findAll(subscription);
+          } else {
+            subscriptions = [subscription];
+          }
+          results = [];
+          for (i = 0, len = subscriptions.length; i < len; i++) {
+            subscription = subscriptions[i];
+            results.push(typeof subscription[callbackName] === "function" ? subscription[callbackName].apply(subscription, args) : void 0);
+          }
+          return results;
+        };
+
+        Subscriptions.prototype.sendCommand = function(subscription, command) {
+          var identifier;
+          identifier = subscription.identifier;
+          return this.consumer.send({
+            command: command,
+            identifier: identifier
+          });
+        };
+
+        return Subscriptions;
+
+      })();
+
+    }).call(this);
+    (function() {
+      ActionCable.Subscription = (function() {
+        var extend;
+
+        function Subscription(consumer, params, mixin) {
+          this.consumer = consumer;
+          if (params == null) {
+            params = {};
+          }
+          this.identifier = JSON.stringify(params);
+          extend(this, mixin);
+        }
+
+        Subscription.prototype.perform = function(action, data) {
+          if (data == null) {
+            data = {};
+          }
+          data.action = action;
+          return this.send(data);
+        };
+
+        Subscription.prototype.send = function(data) {
+          return this.consumer.send({
+            command: "message",
+            identifier: this.identifier,
+            data: JSON.stringify(data)
+          });
+        };
+
+        Subscription.prototype.unsubscribe = function() {
+          return this.consumer.subscriptions.remove(this);
+        };
+
+        extend = function(object, properties) {
+          var key, value;
+          if (properties != null) {
+            for (key in properties) {
+              value = properties[key];
+              object[key] = value;
+            }
+          }
+          return object;
+        };
+
+        return Subscription;
+
+      })();
+
+    }).call(this);
+    (function() {
+      ActionCable.Consumer = (function() {
+        function Consumer(url) {
+          this.url = url;
+          this.subscriptions = new ActionCable.Subscriptions(this);
+          this.connection = new ActionCable.Connection(this);
+        }
+
+        Consumer.prototype.send = function(data) {
+          return this.connection.send(data);
+        };
+
+        Consumer.prototype.connect = function() {
+          return this.connection.open();
+        };
+
+        Consumer.prototype.disconnect = function() {
+          return this.connection.close({
+            allowReconnect: false
+          });
+        };
+
+        Consumer.prototype.ensureActiveConnection = function() {
+          if (!this.connection.isActive()) {
+            return this.connection.open();
+          }
+        };
+
+        return Consumer;
+
+      })();
+
+    }).call(this);
+  }).call(this);
+
+  if (typeof module === "object" && module.exports) {
+    module.exports = ActionCable;
+  } else if (typeof define === "function" && define.amd) {
+    define(ActionCable);
+  }
+}).call(this);
+
+},{}],2:[function(require,module,exports){
+'use strict';
+var token = '%[a-f0-9]{2}';
+var singleMatcher = new RegExp(token, 'gi');
+var multiMatcher = new RegExp('(' + token + ')+', 'gi');
+
+function decodeComponents(components, split) {
+	try {
+		// Try to decode the entire string first
+		return decodeURIComponent(components.join(''));
+	} catch (err) {
+		// Do nothing
+	}
+
+	if (components.length === 1) {
+		return components;
+	}
+
+	split = split || 1;
+
+	// Split the array in 2 parts
+	var left = components.slice(0, split);
+	var right = components.slice(split);
+
+	return Array.prototype.concat.call([], decodeComponents(left), decodeComponents(right));
+}
+
+function decode(input) {
+	try {
+		return decodeURIComponent(input);
+	} catch (err) {
+		var tokens = input.match(singleMatcher);
+
+		for (var i = 1; i < tokens.length; i++) {
+			input = decodeComponents(tokens, i).join('');
+
+			tokens = input.match(singleMatcher);
+		}
+
+		return input;
+	}
+}
+
+function customDecodeURIComponent(input) {
+	// Keep track of all the replacements and prefill the map with the `BOM`
+	var replaceMap = {
+		'%FE%FF': '\uFFFD\uFFFD',
+		'%FF%FE': '\uFFFD\uFFFD'
+	};
+
+	var match = multiMatcher.exec(input);
+	while (match) {
+		try {
+			// Decode as big chunks as possible
+			replaceMap[match[0]] = decodeURIComponent(match[0]);
+		} catch (err) {
+			var result = decode(match[0]);
+
+			if (result !== match[0]) {
+				replaceMap[match[0]] = result;
+			}
+		}
+
+		match = multiMatcher.exec(input);
+	}
+
+	// Add `%C2` at the end of the map to make sure it does not replace the combinator before everything else
+	replaceMap['%C2'] = '\uFFFD';
+
+	var entries = Object.keys(replaceMap);
+
+	for (var i = 0; i < entries.length; i++) {
+		// Replace all decoded components
+		var key = entries[i];
+		input = input.replace(new RegExp(key, 'g'), replaceMap[key]);
+	}
+
+	return input;
+}
+
+module.exports = function (encodedURI) {
+	if (typeof encodedURI !== 'string') {
+		throw new TypeError('Expected `encodedURI` to be of type `string`, got `' + typeof encodedURI + '`');
+	}
+
+	try {
+		encodedURI = encodedURI.replace(/\+/g, ' ');
+
+		// Try the built in decoder first
+		return decodeURIComponent(encodedURI);
+	} catch (err) {
+		// Fallback to a more advanced decoder
+		return customDecodeURIComponent(encodedURI);
+	}
+};
+
+},{}],3:[function(require,module,exports){
 /*!
  * jQuery JavaScript Library v3.3.1
  * https://jquery.com/
@@ -10364,16 +11063,870 @@ if ( !noGlobal ) {
 return jQuery;
 } );
 
-},{}],2:[function(require,module,exports){
+},{}],4:[function(require,module,exports){
+'use strict';
+const strictUriEncode = require('strict-uri-encode');
+const decodeComponent = require('decode-uri-component');
+
+function encoderForArrayFormat(options) {
+	switch (options.arrayFormat) {
+		case 'index':
+			return (key, value, index) => {
+				return value === null ? [
+					encode(key, options),
+					'[',
+					index,
+					']'
+				].join('') : [
+					encode(key, options),
+					'[',
+					encode(index, options),
+					']=',
+					encode(value, options)
+				].join('');
+			};
+		case 'bracket':
+			return (key, value) => {
+				return value === null ? encode(key, options) : [
+					encode(key, options),
+					'[]=',
+					encode(value, options)
+				].join('');
+			};
+		default:
+			return (key, value) => {
+				return value === null ? encode(key, options) : [
+					encode(key, options),
+					'=',
+					encode(value, options)
+				].join('');
+			};
+	}
+}
+
+function parserForArrayFormat(options) {
+	let result;
+
+	switch (options.arrayFormat) {
+		case 'index':
+			return (key, value, accumulator) => {
+				result = /\[(\d*)\]$/.exec(key);
+
+				key = key.replace(/\[\d*\]$/, '');
+
+				if (!result) {
+					accumulator[key] = value;
+					return;
+				}
+
+				if (accumulator[key] === undefined) {
+					accumulator[key] = {};
+				}
+
+				accumulator[key][result[1]] = value;
+			};
+		case 'bracket':
+			return (key, value, accumulator) => {
+				result = /(\[\])$/.exec(key);
+				key = key.replace(/\[\]$/, '');
+
+				if (!result) {
+					accumulator[key] = value;
+					return;
+				}
+
+				if (accumulator[key] === undefined) {
+					accumulator[key] = [value];
+					return;
+				}
+
+				accumulator[key] = [].concat(accumulator[key], value);
+			};
+		default:
+			return (key, value, accumulator) => {
+				if (accumulator[key] === undefined) {
+					accumulator[key] = value;
+					return;
+				}
+
+				accumulator[key] = [].concat(accumulator[key], value);
+			};
+	}
+}
+
+function encode(value, options) {
+	if (options.encode) {
+		return options.strict ? strictUriEncode(value) : encodeURIComponent(value);
+	}
+
+	return value;
+}
+
+function keysSorter(input) {
+	if (Array.isArray(input)) {
+		return input.sort();
+	}
+
+	if (typeof input === 'object') {
+		return keysSorter(Object.keys(input))
+			.sort((a, b) => Number(a) - Number(b))
+			.map(key => input[key]);
+	}
+
+	return input;
+}
+
+function extract(input) {
+	const queryStart = input.indexOf('?');
+	if (queryStart === -1) {
+		return '';
+	}
+	return input.slice(queryStart + 1);
+}
+
+function parse(input, options) {
+	options = Object.assign({arrayFormat: 'none'}, options);
+
+	const formatter = parserForArrayFormat(options);
+
+	// Create an object with no prototype
+	const ret = Object.create(null);
+
+	if (typeof input !== 'string') {
+		return ret;
+	}
+
+	input = input.trim().replace(/^[?#&]/, '');
+
+	if (!input) {
+		return ret;
+	}
+
+	for (const param of input.split('&')) {
+		let [key, value] = param.replace(/\+/g, ' ').split('=');
+
+		// Missing `=` should be `null`:
+		// http://w3.org/TR/2012/WD-url-20120524/#collect-url-parameters
+		value = value === undefined ? null : decodeComponent(value);
+
+		formatter(decodeComponent(key), value, ret);
+	}
+
+	return Object.keys(ret).sort().reduce((result, key) => {
+		const value = ret[key];
+		if (Boolean(value) && typeof value === 'object' && !Array.isArray(value)) {
+			// Sort object keys, not values
+			result[key] = keysSorter(value);
+		} else {
+			result[key] = value;
+		}
+
+		return result;
+	}, Object.create(null));
+}
+
+exports.extract = extract;
+exports.parse = parse;
+
+exports.stringify = (obj, options) => {
+	const defaults = {
+		encode: true,
+		strict: true,
+		arrayFormat: 'none'
+	};
+
+	options = Object.assign(defaults, options);
+
+	if (options.sort === false) {
+		options.sort = () => {};
+	}
+
+	const formatter = encoderForArrayFormat(options);
+
+	return obj ? Object.keys(obj).sort(options.sort).map(key => {
+		const value = obj[key];
+
+		if (value === undefined) {
+			return '';
+		}
+
+		if (value === null) {
+			return encode(key, options);
+		}
+
+		if (Array.isArray(value)) {
+			const result = [];
+
+			for (const value2 of value.slice()) {
+				if (value2 === undefined) {
+					continue;
+				}
+
+				result.push(formatter(key, value2, result.length));
+			}
+
+			return result.join('&');
+		}
+
+		return encode(key, options) + '=' + encode(value, options);
+	}).filter(x => x.length > 0).join('&') : '';
+};
+
+exports.parseUrl = (input, options) => {
+	return {
+		url: input.split('?')[0] || '',
+		query: parse(extract(input), options)
+	};
+};
+
+},{"decode-uri-component":2,"strict-uri-encode":15}],5:[function(require,module,exports){
+'use strict';
+module.exports = require('./lib/index');
+
+},{"./lib/index":10}],6:[function(require,module,exports){
+'use strict';
+
+var randomFromSeed = require('./random/random-from-seed');
+
+var ORIGINAL = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_-';
+var alphabet;
+var previousSeed;
+
+var shuffled;
+
+function reset() {
+    shuffled = false;
+}
+
+function setCharacters(_alphabet_) {
+    if (!_alphabet_) {
+        if (alphabet !== ORIGINAL) {
+            alphabet = ORIGINAL;
+            reset();
+        }
+        return;
+    }
+
+    if (_alphabet_ === alphabet) {
+        return;
+    }
+
+    if (_alphabet_.length !== ORIGINAL.length) {
+        throw new Error('Custom alphabet for shortid must be ' + ORIGINAL.length + ' unique characters. You submitted ' + _alphabet_.length + ' characters: ' + _alphabet_);
+    }
+
+    var unique = _alphabet_.split('').filter(function(item, ind, arr){
+       return ind !== arr.lastIndexOf(item);
+    });
+
+    if (unique.length) {
+        throw new Error('Custom alphabet for shortid must be ' + ORIGINAL.length + ' unique characters. These characters were not unique: ' + unique.join(', '));
+    }
+
+    alphabet = _alphabet_;
+    reset();
+}
+
+function characters(_alphabet_) {
+    setCharacters(_alphabet_);
+    return alphabet;
+}
+
+function setSeed(seed) {
+    randomFromSeed.seed(seed);
+    if (previousSeed !== seed) {
+        reset();
+        previousSeed = seed;
+    }
+}
+
+function shuffle() {
+    if (!alphabet) {
+        setCharacters(ORIGINAL);
+    }
+
+    var sourceArray = alphabet.split('');
+    var targetArray = [];
+    var r = randomFromSeed.nextValue();
+    var characterIndex;
+
+    while (sourceArray.length > 0) {
+        r = randomFromSeed.nextValue();
+        characterIndex = Math.floor(r * sourceArray.length);
+        targetArray.push(sourceArray.splice(characterIndex, 1)[0]);
+    }
+    return targetArray.join('');
+}
+
+function getShuffled() {
+    if (shuffled) {
+        return shuffled;
+    }
+    shuffled = shuffle();
+    return shuffled;
+}
+
+/**
+ * lookup shuffled letter
+ * @param index
+ * @returns {string}
+ */
+function lookup(index) {
+    var alphabetShuffled = getShuffled();
+    return alphabetShuffled[index];
+}
+
+module.exports = {
+    characters: characters,
+    seed: setSeed,
+    lookup: lookup,
+    shuffled: getShuffled
+};
+
+},{"./random/random-from-seed":13}],7:[function(require,module,exports){
+'use strict';
+
+var encode = require('./encode');
+var alphabet = require('./alphabet');
+
+// Ignore all milliseconds before a certain time to reduce the size of the date entropy without sacrificing uniqueness.
+// This number should be updated every year or so to keep the generated id short.
+// To regenerate `new Date() - 0` and bump the version. Always bump the version!
+var REDUCE_TIME = 1459707606518;
+
+// don't change unless we change the algos or REDUCE_TIME
+// must be an integer and less than 16
+var version = 6;
+
+// Counter is used when shortid is called multiple times in one second.
+var counter;
+
+// Remember the last time shortid was called in case counter is needed.
+var previousSeconds;
+
+/**
+ * Generate unique id
+ * Returns string id
+ */
+function build(clusterWorkerId) {
+
+    var str = '';
+
+    var seconds = Math.floor((Date.now() - REDUCE_TIME) * 0.001);
+
+    if (seconds === previousSeconds) {
+        counter++;
+    } else {
+        counter = 0;
+        previousSeconds = seconds;
+    }
+
+    str = str + encode(alphabet.lookup, version);
+    str = str + encode(alphabet.lookup, clusterWorkerId);
+    if (counter > 0) {
+        str = str + encode(alphabet.lookup, counter);
+    }
+    str = str + encode(alphabet.lookup, seconds);
+
+    return str;
+}
+
+module.exports = build;
+
+},{"./alphabet":6,"./encode":9}],8:[function(require,module,exports){
+'use strict';
+var alphabet = require('./alphabet');
+
+/**
+ * Decode the id to get the version and worker
+ * Mainly for debugging and testing.
+ * @param id - the shortid-generated id.
+ */
+function decode(id) {
+    var characters = alphabet.shuffled();
+    return {
+        version: characters.indexOf(id.substr(0, 1)) & 0x0f,
+        worker: characters.indexOf(id.substr(1, 1)) & 0x0f
+    };
+}
+
+module.exports = decode;
+
+},{"./alphabet":6}],9:[function(require,module,exports){
+'use strict';
+
+var randomByte = require('./random/random-byte');
+
+function encode(lookup, number) {
+    var loopCounter = 0;
+    var done;
+
+    var str = '';
+
+    while (!done) {
+        str = str + lookup( ( (number >> (4 * loopCounter)) & 0x0f ) | randomByte() );
+        done = number < (Math.pow(16, loopCounter + 1 ) );
+        loopCounter++;
+    }
+    return str;
+}
+
+module.exports = encode;
+
+},{"./random/random-byte":12}],10:[function(require,module,exports){
+'use strict';
+
+var alphabet = require('./alphabet');
+var encode = require('./encode');
+var decode = require('./decode');
+var build = require('./build');
+var isValid = require('./is-valid');
+
+// if you are using cluster or multiple servers use this to make each instance
+// has a unique value for worker
+// Note: I don't know if this is automatically set when using third
+// party cluster solutions such as pm2.
+var clusterWorkerId = require('./util/cluster-worker-id') || 0;
+
+/**
+ * Set the seed.
+ * Highly recommended if you don't want people to try to figure out your id schema.
+ * exposed as shortid.seed(int)
+ * @param seed Integer value to seed the random alphabet.  ALWAYS USE THE SAME SEED or you might get overlaps.
+ */
+function seed(seedValue) {
+    alphabet.seed(seedValue);
+    return module.exports;
+}
+
+/**
+ * Set the cluster worker or machine id
+ * exposed as shortid.worker(int)
+ * @param workerId worker must be positive integer.  Number less than 16 is recommended.
+ * returns shortid module so it can be chained.
+ */
+function worker(workerId) {
+    clusterWorkerId = workerId;
+    return module.exports;
+}
+
+/**
+ *
+ * sets new characters to use in the alphabet
+ * returns the shuffled alphabet
+ */
+function characters(newCharacters) {
+    if (newCharacters !== undefined) {
+        alphabet.characters(newCharacters);
+    }
+
+    return alphabet.shuffled();
+}
+
+/**
+ * Generate unique id
+ * Returns string id
+ */
+function generate() {
+  return build(clusterWorkerId);
+}
+
+// Export all other functions as properties of the generate function
+module.exports = generate;
+module.exports.generate = generate;
+module.exports.seed = seed;
+module.exports.worker = worker;
+module.exports.characters = characters;
+module.exports.decode = decode;
+module.exports.isValid = isValid;
+
+},{"./alphabet":6,"./build":7,"./decode":8,"./encode":9,"./is-valid":11,"./util/cluster-worker-id":14}],11:[function(require,module,exports){
+'use strict';
+var alphabet = require('./alphabet');
+
+function isShortId(id) {
+    if (!id || typeof id !== 'string' || id.length < 6 ) {
+        return false;
+    }
+
+    var characters = alphabet.characters();
+    var len = id.length;
+    for(var i = 0; i < len;i++) {
+        if (characters.indexOf(id[i]) === -1) {
+            return false;
+        }
+    }
+    return true;
+}
+
+module.exports = isShortId;
+
+},{"./alphabet":6}],12:[function(require,module,exports){
+'use strict';
+
+var crypto = typeof window === 'object' && (window.crypto || window.msCrypto); // IE 11 uses window.msCrypto
+
+function randomByte() {
+    if (!crypto || !crypto.getRandomValues) {
+        return Math.floor(Math.random() * 256) & 0x30;
+    }
+    var dest = new Uint8Array(1);
+    crypto.getRandomValues(dest);
+    return dest[0] & 0x30;
+}
+
+module.exports = randomByte;
+
+},{}],13:[function(require,module,exports){
+'use strict';
+
+// Found this seed-based random generator somewhere
+// Based on The Central Randomizer 1.3 (C) 1997 by Paul Houle (houle@msc.cornell.edu)
+
+var seed = 1;
+
+/**
+ * return a random number based on a seed
+ * @param seed
+ * @returns {number}
+ */
+function getNextValue() {
+    seed = (seed * 9301 + 49297) % 233280;
+    return seed/(233280.0);
+}
+
+function setSeed(_seed_) {
+    seed = _seed_;
+}
+
+module.exports = {
+    nextValue: getNextValue,
+    seed: setSeed
+};
+
+},{}],14:[function(require,module,exports){
+'use strict';
+
+module.exports = 0;
+
+},{}],15:[function(require,module,exports){
+'use strict';
+module.exports = str => encodeURIComponent(str).replace(/[!'()*]/g, x => `%${x.charCodeAt(0).toString(16).toUpperCase()}`);
+
+},{}],16:[function(require,module,exports){
 const $ = require('jquery')
+const shortid = require('shortid')
+const queryString = require('query-string')
+const Texts = require('./texts')
+const MatchConnection = require('./models/match')
+const exampleTexts = new Texts()
 
 class Game {
-    constructor() {
-        console.log($(document))
+    constructor(connection) {
+        this.paragraph = null
+        this.numCorrect = 0
+        this._wpm = 0
+        this.startTime = -1
+        this.WPMInterval = -1
+        this.connection = connection
+        this.textContainer = $('#promptText')
+        this.wordInput = $('#typeInput')
+        this.wordInput.on('input', this.valueChange)
+        this.wordInput.prop('disabled', true)
+    }
+
+    start() {
+        this.startTime = Date.now()
+        this.wordInput.prop('disabled', false)
+        this.wordInput.focus()
+        // Update WPM
+        const thisRef = this
+        this.WPMInterval = setInterval(() => {
+            $('#wpm').text(thisRef.WPM.toFixed(2))
+            this.connection.sendWPM(thisRef.WPM)
+        }, 1000)
+    }
+
+    end() {
+        clearInterval(this.WPMInterval)
+        this.wordInput.prop('disabled', true)
+    }
+
+    setText(rawText) {
+        this.paragraph = new Paragraph(rawText)
+        this.paragraph.renderTextToElement(this.textContainer)
+        this.paragraph.currentWord.startClock()
+    }
+
+    updateTable(data) {
+        const tbody = $('#rank-table-body')
+        tbody.empty()
+
+        const results = data.result
+        let users = []
+
+        for (let user in results) {
+            if (user === "active") continue
+            const userWPM = results[user]
+            users.push({
+                name: user,
+                wpm: userWPM
+            })
+        }
+
+        users.sort((a, b) => {
+            if (a.wpm > b.wpm)
+                return -1
+            if (a.wpm < b.wpm)
+                return 1
+            return 0
+        })
+
+        users.forEach((user, index) => {
+            const trow = $(`
+                <tr>
+                    <th scope="row">${index + 1}</th>
+                    <td>${user.wpm}</td>
+                    <td>${user.name}</td>
+                </tr>
+            `)
+
+            tbody.append(trow)
+        })
+    }
+
+    get valueChange() {
+        const thisRef = this
+        return () => {
+            if (thisRef.paragraph.checkWord(thisRef.wordInput.val())) {
+                // Word is correct
+                thisRef.numCorrect += 1
+                const completionTime = thisRef.paragraph.currentWord.completionTime / 1000
+
+                const next = thisRef.paragraph.nextWord()
+                thisRef.wordInput.val(null)
+
+                // Update text
+                if (!next) {
+                    thisRef.setText(exampleTexts.getText())
+                } else {
+                    next.startClock()
+                }
+            }
+        }
+    }
+
+    get WPM() {
+        const timeElapsed = (Date.now() - this.startTime) / (1000 * 60)
+        return this.numCorrect / timeElapsed
+    }
+}
+
+class Paragraph {
+    constructor(text) {
+        this.text = text
+        this.words = []
+        this.wordsStack = null
+        this.currentWord = null
+
+        this.text.split(' ').forEach((token) => {
+            this.words.push(new Word(token))
+        })
+
+        this.wordsStack = [].concat(this.words).reverse()
+        this.currentWord = this.wordsStack.pop()
+    }
+
+    renderTextToElement($element) {
+        $element.empty()
+        this.words.forEach((word) => {
+            $element.append(word.getElement$())
+        })
+    }
+
+    checkWord(text) {
+        if (text.trim() === this.currentWord.toString()) {
+            this.currentWord.endClock()
+            this.currentWord.showCorrect()
+            return true
+        } else {
+            this.currentWord.showIncorrect(text)
+            return false
+        }
+    }
+
+    nextWord() {
+        this.currentWord = this.wordsStack.pop()
+        return this.currentWord
+    }
+}
+
+class Word {
+    constructor(wordText) {
+        this.text = wordText.trim()
+        this.letterMap$ = []
+        this.startTime = null
+        this.completionTime = -1
+
+        // Build element
+        this.wordElement = $('<span>', {
+            text: ' '
+        }).css({
+            'border-radius': '0.1em',
+            'padding': '3px'
+        })
+
+        this.text.split('').forEach((c, index) => {
+            const letter = $('<span>', { text: c })
+            this.letterMap$[c + index] = letter
+            this.wordElement.append(letter)
+        })
+    }
+
+    getElement$() {
+        return this.wordElement
+    }
+
+    toString() {
+        return this.text
+    }
+
+    showIncorrect(incorrectText) {
+        const text = incorrectText.trim()
+
+        for (let key in this.letterMap$) {
+            this.letterMap$[key].css({ 'background-color': 'transparent' })
+        }
+
+        if (this.text.startsWith(text)) {
+            text.split('').forEach((c, index) => {
+                const letter$ = this.letterMap$[c + index]
+                letter$.css({
+                    'background-color': 'rgba(244,67,54,0.5)',
+                    'border-radius': '0.1em'
+                })
+            })
+        }
+        this.wordElement.css({ 'background-color': 'rgba(244,67,54,0.5)' })
+    }
+
+    showCorrect() {
+        for (let key in this.letterMap$) {
+            this.letterMap$[key].css({ 'background-color': 'transparent' })
+        }
+        this.wordElement.css({ 'background-color': 'rgba(76,175,80,0.5)' })
+    }
+
+    startClock() {
+        this.startTime = Date.now()
+    }
+
+    endClock() {
+        this.completionTime = Date.now() - this.startTime
     }
 }
 
 $(document).ready(() => {
-    new Game()
+    const url = 'http://10.186.79.89:3000/'
+    const connection = new MatchConnection()
+    const game = new Game(connection)
+
+    $('#rank-row').hide()
+
+    $('#startButton').on('click', () => {
+        connection.startMatch()
+    })
+
+    game.setText(exampleTexts.getText())
+
+    const params = queryString.parse(location.search)
+    let uid = shortid.generate()
+
+    if (params.match) {
+        uid = params.match
+        $('#startButton').hide()
+    } else {
+        $('#gameUrl').text(url + '?match=' + uid)
+    }
+
+    console.log('UID', uid)
+    connection.joinMatch(uid, (data) => {
+        console.log(data)
+        console.log("Match Started")
+        $('#startButton').hide()
+        $('#gameUrl').hide()
+        $('#lobby-row').hide()
+        $('#rank-row').show()
+        game.start()
+    }, (data) => {
+        console.log("Match Done")
+        game.updateTable(data)
+        game.end()
+    }, (data) => {
+        game.updateTable(data)
+    })
 })
-},{"jquery":1}]},{},[2]);
+},{"./models/match":17,"./texts":18,"jquery":3,"query-string":4,"shortid":5}],17:[function(require,module,exports){
+const ActionCable = require("actioncable")
+
+class MatchConnection {
+    constructor() {
+        // const url = 'ws://10.186.79.89:3000/'
+        const url = 'ws://10.186.79.89:3000/'
+        this.cable = ActionCable.createConsumer(url + 'cable')
+    }
+
+    joinMatch(matchId, startCallback, doneCallback, dataCallback) {
+        this.matchId = matchId
+        this.channel = this.cable.subscriptions.create({ channel: "MatchChannel", match_id: matchId }, {
+            connected: () => {
+                console.log("Cable Connected")
+            },
+            disconnected: () => {
+                console.log("Cable Disconnected")
+            },
+            received: (data) => {
+                if (data.complete) {
+                    this.channel.unsubscribe()
+                    return doneCallback(data)
+                }
+                if (data.started) {
+                    return startCallback(data)
+                }
+                dataCallback(data)
+            },
+            rejected: () => {
+                console.log("Data Rejected")
+            }
+        })
+    }
+
+    sendWPM(wpm) {
+        this.channel.send({ wpm: wpm })
+        console.log("Sent " + wpm + " wpm")
+    }
+
+    startMatch() {
+        this.channel.send({ start: true })
+        console.log("Sent start match")
+    }
+}
+
+module.exports = MatchConnection
+},{"actioncable":1}],18:[function(require,module,exports){
+module.exports = class Texts {
+    constructor() {
+        this.texts = []
+        this.textIndex = 0
+
+        this.texts.push('Respect forming clothes do in he. Course so piqued no an by appear. Themselves reasonable pianoforte so motionless he as difficulty be. Abode way begin ham there power whole. Do unpleasing indulgence impossible to conviction. Suppose neither evident welcome it at do civilly uncivil. Sing tall much you get nor.')
+        this.texts.push('Paid was hill sir high. For him precaution any advantages dissimilar comparison few terminated projecting. Prevailed discovery immediate objection of ye at. Repair summer one winter living feebly pretty his. In so sense am known these since. Shortly respect ask cousins brought add tedious nay. Expect relied do we genius is. On as around spirit of hearts genius. Is raptures daughter branched laughter peculiar in settling.')
+        this.texts.push('Cottage out enabled was entered greatly prevent message. No procured unlocked an likewise. Dear but what she been over gay felt body. Six principles advantages and use entreaties decisively. Eat met has dwelling unpacked see whatever followed. Court in of leave again as am. Greater sixteen to forming colonel no on be. So an advice hardly barton. He be turned sudden engage manner spirit.')
+        this.texts.push('Sociable on as carriage my position weddings raillery consider. Peculiar trifling absolute and wandered vicinity property yet. The and collecting motionless difficulty son. His hearing staying ten colonel met. Sex drew six easy four dear cold deny. Moderate children at of outweigh it. Unsatiable it considered invitation he travelling insensible. Consulted admitting oh mr up as described acuteness propriety moonlight.')
+    }
+
+    getText() {
+        return this.texts[this.textIndex++ % this.texts.length]
+    }
+}
+},{}]},{},[16]);

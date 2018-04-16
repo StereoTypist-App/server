@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>StereoTypist</title>
+
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
+    <!-- Bootstrap core CSS -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.0.0/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Material Design Bootstrap -->
+    <link href="http://52.14.34.73:5120/css/flat.css" rel="stylesheet">
+    <!-- Main CSS -->
+    <link rel="stylesheet" href="css/styles.css">
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="css/game.css">
+
+    <body>
+        <div class="container-fluid m-0 p-0 game-container">
+            <div class="container pt-4">
+                <div class="row">
+                    <!--Navbar-->
+                    <nav class="navbar navbar-expand-lg no-shadow navbar-dark w-100">
+
+                        <!-- Navbar brand -->
+                        <a class="navbar-brand light-text font-400" href="#">StereoTypist</a>
+
+                        <!-- Collapse button -->
+                        <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false"
+                            aria-label="Toggle navigation">
+                            <span class="navbar-toggler-icon"></span>
+                        </button>
+
+                        <!-- Collapsible content -->
+                        <div class="collapse navbar-collapse" id="navbarNav">
+
+                            <!-- Links -->
+                            <ul class="navbar-nav ml-auto">
+                                <li class="nav-item">
+                                    <a class="nav-link light-text" href="/profile">Profile</a>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="nav-link light-text" href="/leaderboard">Leaderboard</a>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="nav-link light-text" href="#" data-toggle="modal" data-target="#modalLoginForm">Login</a>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="nav-link light-text" href="#" data-toggle="modal" data-target="#modalRegisterForm">Register</a>
+                                </li>
+                            </ul>
+                            <!-- Links -->
+                        </div>
+                        <!-- Collapsible content -->
+
+                    </nav>
+                    <!--/.Navbar-->
+                </div>
+
+                <div class="row mt-4 mb-4">
+                    <div class="col">
+                        <h2 class="dark-text text-left font-400">Type this text:</h2>
+                        <div class="light-text" id="promptText"></div>
+                    </div>
+                </div>
+
+                <div class="row mt-4">
+                    <div class="col text-center">
+                        <!-- Small input -->
+                        <div class="md-form form-sm">
+                            <input type="text" class="form-control form-control-sm light-text" id="typeInput">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row mt-4">
+                    <div class="col text-center">
+                        <h2 class="font-weight-bold light-text" id="wpm"></h2>
+                    </div>
+                </div>
+
+                <div class="row mt-4" id="lobby-row">
+                    <div class="col-12 mb-3 text-center">
+                        <h4 class="card-title mb-2 dark-text mb-3">Send this link to your friends so they can join the fun</h4>
+                        <h4 class="card-subtitle light-text mb-3" id="gameUrl"></h4>
+                    </div>
+                    <div class="col-12 text-center">
+                        <button class="st-button" id="startButton">START</button>
+                    </div>
+                </div>
+
+                <div class="row mt-4" id="rank-row">
+                    <div class="col-12">
+                        <div class="card">
+                            <!--Table-->
+                            <table class="table">
+
+                                <!--Table head-->
+                                <thead>
+                                    <tr>
+                                        <th>#</th>
+                                        <th>WPM</th>
+                                        <th>Name</th>
+                                    </tr>
+                                </thead>
+                                <!--Table head-->
+
+                                <!--Table body-->
+                                <tbody id="rank-table-body">
+                                </tbody>
+                                <!--Table body-->
+
+                            </table>
+                            <!--Table-->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Login Modal -->
+        <div class="modal fade" id="modalLoginForm" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered" role="document">
+                <div class="modal-content">
+                    <div class="modal-header text-center">
+                        <h4 class="modal-title w-100 font-weight-bold">Sign in</h4>
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    <form id="login_user" action="/users/sign_in" accept-charset="UTF-8" method="post">
+                        <div class="modal-body mx-3">
+                            <div class="md-form mb-5">
+                                <i class="fa fa-envelope prefix grey-text"></i>
+                                <input type="email" name="user[email]" id="user_email_login" class="form-control validate">
+                                <label data-error="wrong" data-success="right" for="user_email_login">Your email</label>
+                            </div>
+
+                            <div class="md-form mb-4">
+                                <i class="fa fa-lock prefix grey-text"></i>
+                                <input type="password" name="user[password]" id="user_password_login" class="form-control validate">
+                                <label data-error="wrong" data-success="right" for="user_password_login">Your password</label>
+                            </div>
+
+                            <div class="md-form mb-4">
+                                <i class="fa fa-lock prefix grey-text hidden" style="visibility: hidden"></i>
+                                <input name="user[remember_me]" type="hidden" value="0">
+                                <input type="checkbox" value="1" name="user[remember_me]" id="user_remember_me">
+                                <label for="user_remember_me">Remember me</label>
+                            </div>
+
+                        </div>
+                        <div class="modal-footer d-flex justify-content-center">
+                            <input class="btn btn-indigo" type="submit" name="commit" value="Log in" data-disable-with="Log in">
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Register Modal -->
+        <div class="modal fade" id="modalRegisterForm" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered" role="document">
+                <div class="modal-content">
+                    <div class="modal-header text-center">
+                        <h4 class="modal-title w-100 font-weight-bold">Sign up</h4>
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    <form id="new_user" action="/users" accept-charset="UTF-8" method="post">
+                        <div class="modal-body mx-3">
+                            <!-- Name -->
+                            <div class="md-form mb-5">
+                                <i class="fa fa-user prefix grey-text"></i>
+                                <input type="text" name="user[display_name]" id="user_display_name" class="form-control validate">
+                                <label data-error="wrong" data-success="right" for="user_display_name">Your name</label>
+                            </div>
+                            <!-- Email -->
+                            <div class="md-form mb-5">
+                                <i class="fa fa-envelope prefix grey-text"></i>
+                                <input type="email" name="user[email]" id="user_email" class="form-control validate">
+                                <label data-error="wrong" data-success="right" for="user_email">Your email</label>
+                            </div>
+                            <!-- Password -->
+                            <div class="md-form mb-5">
+                                <i class="fa fa-lock prefix grey-text"></i>
+                                <input type="password" name="user[password]" id="user_password" class="form-control validate">
+                                <label data-error="wrong" data-success="right" for="user_password">Your password</label>
+                            </div>
+                            <!-- Password Confirmation -->
+                            <div class="md-form mb-4">
+                                <i class="fa fa-lock prefix grey-text"></i>
+                                <input type="password" name="user[password_confirmation]" id="user_password_confirmation" class="form-control validate">
+                                <label data-error="wrong" data-success="right" for="user_password_confirmation">Confirm password</label>
+                            </div>
+
+                        </div>
+                        <div class="modal-footer d-flex justify-content-center">
+                            <input class="btn btn-indigo" type="submit" name="commit" value="Sign up" data-disable-with="Sign up">
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- JQuery -->
+        <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+        <!-- Bootstrap tooltips -->
+        <!-- Bootstrap tooltips -->
+        <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.13.0/umd/popper.min.js"></script>
+        <!-- Bootstrap core JavaScript -->
+        <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.0.0/js/bootstrap.min.js"></script>
+        <!-- MDB core JavaScript -->
+        <script type="text/javascript" src="http://52.14.34.73:5120/js/mdb.min.js"></script>
+
+        <script src="dist/game.bundle.js"></script>
+    </body>
+
+</html>
