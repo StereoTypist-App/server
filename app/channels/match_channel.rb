@@ -82,6 +82,7 @@ class MatchChannel < ApplicationCable::Channel
         @@matches[params[:match_id]].delete("active")
         puts "Match Over #{@@matches[params[:match_id]]}"
         ActionCable.server.broadcast "match:#{params[:match_id]}", {complete: true, result: @@matches[params[:match_id]]}
+        @@matches.delete(params[:match_id])
       end
       return
     end
