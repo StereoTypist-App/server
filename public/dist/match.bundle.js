@@ -10974,19 +10974,23 @@ const $ = require('jquery')
 const connection = new MatchConnection()
 
 $(document).ready(() => {
-    connection.joinMatch('1234',() => {
-        console.log("Match Started")
-    },(data) => {
-        console.log("Match Done",data)
-    },(data) => {
-        console.log("Received data",data)
+    connection.getMatches((data) => {
+        console.log("Matchmaking data",data)
     })
-    setTimeout(() => {
-        connection.startMatch()
-    },10000)
-    setInterval(() => {
-        connection.sendWPM(parseInt(Math.floor(Math.random() * 100) + 1))
-    },3000)
+
+    // connection.joinMatch('1234', () => {
+    //     console.log("Match Started")
+    // }, (data) => {
+    //     console.log("Match Done", data)
+    // }, (data) => {
+    //     console.log("Received data", data)
+    // })
+    // setTimeout(() => {
+    //     connection.startMatch()
+    // }, 10000)
+    // setInterval(() => {
+    //     connection.sendWPM(parseInt(Math.floor(Math.random() * 100) + 1))
+    // }, 3000)
 })
 
 
@@ -10995,12 +10999,31 @@ const ActionCable = require("actioncable")
 
 class MatchConnection {
     constructor() {
-        this.cable = ActionCable.createConsumer('ws://localhost:3000/cable')
+        const url = 'ws://localhost:3000/'
+        // const url = 'ws://10.186.148.161:3000/'
+        this.cable = ActionCable.createConsumer(url + 'cable')
     }
 
-    joinMatch(matchId,startCallback,doneCallback,dataCallback) {
+    getMatches(updateCallback) {
+        this.matchmakingChannel = this.cable.subscriptions.create({ channel: "MatchChannel", matchmaking: true }, {
+            connected: () => {
+                console.log("Matchmaking Cable Connected")
+            },
+            disconnected: () => {
+                console.log("Cable Disconnected")
+            },
+            received: (data) => {
+                updateCallback(data)
+            },
+            rejected: () => {
+                console.log("Data Rejected")
+            }
+        })
+    }
+
+    joinMatch(matchId, startCallback, doneCallback, dataCallback) {
         this.matchId = matchId
-        this.channel = this.cable.subscriptions.create({channel: "MatchChannel", match_id: matchId },{
+        this.channel = this.cable.subscriptions.create({ channel: "MatchChannel", match_id: matchId }, {
             connected: () => {
                 console.log("Cable Connected")
             },
@@ -11008,12 +11031,12 @@ class MatchConnection {
                 console.log("Cable Disconnected")
             },
             received: (data) => {
-                if(data.complete) {
+                if (data.complete) {
                     this.channel.unsubscribe()
                     return doneCallback(data)
                 }
-                if(data.started) {
-                    return startCallback()
+                if (data.started) {
+                    return startCallback(data)
                 }
                 dataCallback(data)
             },
@@ -11024,12 +11047,12 @@ class MatchConnection {
     }
 
     sendWPM(wpm) {
-        this.channel.send({wpm: wpm})
+        this.channel.send({ wpm: wpm })
         console.log("Sent " + wpm + " wpm")
     }
 
     startMatch() {
-        this.channel.send({start: true})
+        this.channel.send({ start: true })
         console.log("Sent start match")
     }
 }

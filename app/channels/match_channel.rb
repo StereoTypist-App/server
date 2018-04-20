@@ -5,13 +5,46 @@ class MatchChannel < ApplicationCable::Channel
   @@matches = Hash.new
   @@texts = Array.new
 
+  @@matchmaking_started = false
+
   MATCH_DURATION = 15
   DELTA = 0.5
 
+  def build_match_array
+    match_arr = Array.new
+    @@matches.each do |key, array|
+      count = @@matches[key].keys.count - 1
+      match_arr.push({id: key, count: count})
+    end
+    return match_arr
+  end
+
+  def send_matchmaking
+    puts "Matchmaking started"
+    @@matchmaking_started = true
+    Thread.new do
+      loop do
+        ActionCable.server.broadcast "matchmaking", build_match_array
+        sleep 2
+      end
+    end
+  end
+
   def subscribed
+    if params[:matchmaking] then
+      puts "Subscription for matchmaking established"
+      if !@@matchmaking_started then
+        send_matchmaking
+      end
+      stream_from "matchmaking"
+      ActionCable.server.broadcast "matchmaking", build_match_array
+      return
+    end
+
     #if not in matches, add to it
     if !@@matches.key?(params[:match_id]) then
       @@matches[params[:match_id]] = Hash.new
+      @@matches[params[:match_id]]["active"] = false
       @@texts = load_text(1)
     end
 
@@ -25,6 +58,8 @@ class MatchChannel < ApplicationCable::Channel
     if current_user != nil then
       @user_display_name = current_user.display_name
     end
+
+    @@matches[params[:match_id]][@user_display_name] = 0
 
     puts "Subscription for match #{params[:match_id]} user: #{@user_display_name}"
 
@@ -57,14 +92,16 @@ class MatchChannel < ApplicationCable::Channel
   end
 
   def unsubscribed
-    if current_user != nil then
-      result = Result.new
-      result.wpm = @@matches[params[:match_id]][@user_display_name]
-      result.user = current_user
-      result.save
+    if params[:match_id] then
+      if current_user != nil then
+        result = Result.new
+        result.wpm = @@matches[params[:match_id]][@user_display_name]
+        result.user = current_user
+        result.save
+      end
+
+      @@matches[params[:match_id]].delete(@user_display_name)
     end
-    
-    @@matches[params[:match_id]].delete(@user_display_name)
   end
 
   def load_text(index)
