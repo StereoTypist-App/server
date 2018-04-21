@@ -14,7 +14,7 @@ class MatchChannel < ApplicationCable::Channel
     match_arr = Array.new
     @@matches.each do |key, array|
       count = @@matches[key].keys.count - 1
-      if !@@matches[key]["active"] then
+      if !@@matches[key]["active"] && count > 0 then
         match_arr.push({id: key, count: count})
       end
     end
@@ -101,6 +101,10 @@ class MatchChannel < ApplicationCable::Channel
         result.wpm = @@matches[params[:match_id]][@user_display_name]
         result.user = current_user
         result.save
+      end
+
+      if @@matches[params[:match_id]].keys.count - 1 == 0 then
+        @@matches.delete(params[:match_id])
       end
 
       @@matches[params[:match_id]].delete(@user_display_name)
