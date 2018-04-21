@@ -25,7 +25,7 @@ class MatchChannel < ApplicationCable::Channel
     puts "Matchmaking started"
     @@matchmaking_started = true
     Thread.new do
-      loop do
+      while @@matchmaking_started == true do
         ActionCable.server.broadcast "matchmaking", build_match_array
         sleep 2
       end
