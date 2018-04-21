@@ -1,5 +1,6 @@
 class User < ApplicationRecord
   has_many :results
+  has_many :texts
 
   validates :display_name, presence: true, uniqueness: true, format: { without: /\s/ }
 
