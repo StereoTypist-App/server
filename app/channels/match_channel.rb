@@ -26,7 +26,10 @@ class MatchChannel < ApplicationCable::Channel
     @@matchmaking_started = true
     Thread.new do
       while @@matchmaking_started == true do
-        ActionCable.server.broadcast "matchmaking", build_match_array
+        match_arr = build_match_array
+        if match_arr.count > 0 then
+          ActionCable.server.broadcast "matchmaking", match_arr
+        end
         sleep 2
       end
     end
