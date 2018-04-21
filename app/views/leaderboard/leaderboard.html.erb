@@ -1,6 +1,43 @@
-<h1>Leaderboard</h1>
-<ul>
-<% @leaderboard.each do |result| %>
-<li><%= result.user.display_name %>: <%= result.wpm %> WPM</li>
-<% end %>
-</ul>
+<div class="row m-0 mt-4 mb-3">
+    <div class="col text-center text-white light-text font-400">
+            <h1 class="">Leaderboard</h1>
+    </div>
+</div>
+
+<div class="row m-0">
+    <div class="col-2 m-0 p-0"></div>
+    <div class="col-8 m-0 p-0">
+        <div class="card">
+            <div class="card-body">
+                <!--Table-->
+                <table class="table table-responsive-md">
+                    <!--Table head-->
+                    <thead class="deep-purple lighten-1 text-white">
+                        <tr>
+                            <th>#</th>
+                            <th class="th-lg">Username</th>
+                            <th class="th-lg">WPM</th>
+                        </tr>
+                    </thead>
+                    <!--Table head-->
+
+                    <!--Table body-->
+                    
+                    <tbody>
+                        <% @leaderboard.each_with_index do |result, index| %>
+                        <tr>
+                            <th scope="row"><%= index + 1 %></th>
+                            <td><%= result.user.display_name %></td>
+                            <td><%= result.wpm.round(2) %></td>
+                        </tr>
+                        <% end %>
+                    </tbody>
+                    <!--Table body-->
+
+                </table>
+                <!--Table-->
+            </div>
+        </div>
+    </div>
+    <div class="col-2 m-0 p-0"></div>
+</div>
