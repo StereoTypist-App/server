@@ -70,7 +70,10 @@ class MatchChannel < ApplicationCable::Channel
 
     stream_from "match:#{params[:match_id]}"
 
-    ActionCable.server.broadcast "match:#{params[:match_id]}", {complete: false, result: @@matches[params[:match_id]]}
+    Thread.new do
+      sleep 1
+      ActionCable.server.broadcast "match:#{params[:match_id]}", {complete: false, result: @@matches[params[:match_id]]}
+    end
   end
 
   def receive(data)
