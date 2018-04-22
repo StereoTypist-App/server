@@ -10999,7 +10999,7 @@ const ActionCable = require("actioncable")
 
 class MatchConnection {
     constructor() {
-        const url = 'wss://desolate-dusk-66849.herokuapp.com/'
+        const url = 'wss://stereotypist.herokuapp.com/'
         // const url = 'ws://10.186.148.161:3000/'
         this.cable = ActionCable.createConsumer(url + 'cable')
     }
