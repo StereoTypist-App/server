@@ -10985,7 +10985,7 @@ function updateTable(tableData) {
                 <td class="hidden-md-down">${match.id}</td>
                 <td>${match.count}</td>
                 <td>
-                    <a href="${"/game.html?match=" + match.id}" class="btn btn-sm btn-outline-indigo">JOIN</a>
+                    <a href="${"/game?match=" + match.id}" class="btn btn-sm btn-outline-indigo">JOIN</a>
                 </td>
             </tr>
         `)
