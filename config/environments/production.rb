@@ -4,7 +4,7 @@ Rails.application.configure do
   # Code is not reloaded between requests.
   config.cache_classes = true
 
-  config.action_mailer.default_url_options = { host: 'stereotypist.herokuapp.com', port: 80 }
+  config.action_mailer.default_url_options = { host: 'localhost', port: 80 }
 
   # Eager load code on boot. This eager loads most of Rails and
   # your application in memory, allowing both threaded web servers
@@ -49,7 +49,7 @@ Rails.application.configure do
    config.action_cable.url = 'wss://stereotypist.herokuapp.com/cable'
 
    config.action_cable.allowed_request_origins = [
-'https://stereotypist.herokuapp.com', 'http://stereotypist.herokuapp.com']
+'https://localhost', 'http://localhost']
 
   config.web_socket_server_url = 'wss://stereotypist.herokuapp.com/'
   # config.action_cable.allowed_request_origins = [ 'http://example.com', /http:\/\/example.*/ ]

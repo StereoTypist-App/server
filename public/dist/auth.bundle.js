@@ -4070,7 +4070,7 @@ var RepoInfo = /** @class */ (function () {
         var connURL;
         if (type === Constants_1.WEBSOCKET) {
             connURL =
-                (this.secure ? 'wss://' : 'ws://') + this.internalHost + '/.ws?';
+                (this.secure ? 'wss://' : 'wss://') + this.internalHost + '/.ws?';
         }
         else if (type === Constants_1.LONG_POLLING) {
             connURL =

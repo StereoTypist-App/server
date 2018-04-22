@@ -14,7 +14,7 @@ class MatchChannel < ApplicationCable::Channel
     match_arr = Array.new
     @@matches.each do |key, array|
       count = @@matches[key].keys.count - 1
-      if !@@matches[key]["active"] && count > 0 && then
+      if !@@matches[key]["active"] && count > 0 && key != nil then
         match_arr.push({id: key, count: count})
       end
     end
