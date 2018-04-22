@@ -128,6 +128,8 @@
                                 <label for="user_remember_me">Remember me</label>
                             </div>
 
+                            <%= hidden_field_tag :authenticity_token, form_authenticity_token %>
+
                         </div>
                         <div class="modal-footer d-flex justify-content-center">
                             <input class="btn btn-indigo" type="submit" name="commit" value="Log in" data-disable-with="Log in">
@@ -173,6 +175,8 @@
                                 <input type="password" name="user[password_confirmation]" id="user_password_confirmation" class="form-control validate">
                                 <label data-error="wrong" data-success="right" for="user_password_confirmation">Confirm password</label>
                             </div>
+
+                            <%= hidden_field_tag :authenticity_token, form_authenticity_token %>
 
                         </div>
                         <div class="modal-footer d-flex justify-content-center">
