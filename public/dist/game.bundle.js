@@ -36072,14 +36072,26 @@ class Game {
         const results = data.result
         let users = []
 
-        Object.keys(results).forEach((user) => {
-            if (user === "active") return
+        $('#players-tbody').empty()
+        let index = 1
+        for (let user in results) {
+            if (user === "active") continue
+
+            $('#players-tbody').append(`
+                <tr>
+                    <td class="d-light-text" style="width: 50px">${index}</td>
+                    <td class="text-left d-light-text">${user}</td>
+                </tr>
+            `)
+
             const userWPM = results[user]
             users.push({
                 name: user,
                 wpm: userWPM
             })
-        })
+
+            ++index
+        }
 
         users.sort((a, b) => {
             if (a.wpm > b.wpm)
