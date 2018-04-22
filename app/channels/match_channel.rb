@@ -88,6 +88,7 @@ class MatchChannel < ApplicationCable::Channel
         ActionCable.server.broadcast "match:#{params[:match_id]}", {complete: true, result: @@matches[params[:match_id]]}
         @@matches.delete(params[:match_id])
       end
+      ActionCable.server.broadcast "matchmaking", build_match_array
       return
     end
     
@@ -112,6 +113,8 @@ class MatchChannel < ApplicationCable::Channel
       end
 
       @@matches[params[:match_id]].delete(@user_display_name)
+
+      ActionCable.server.broadcast "matchmaking", build_match_array
     end
   end
 
