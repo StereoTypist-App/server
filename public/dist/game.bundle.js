@@ -36073,7 +36073,7 @@ class Game {
         let users = []
 
         Object.keys(results).forEach((user) => {
-            if (user === "active") continue
+            if (user === "active") return
             const userWPM = results[user]
             users.push({
                 name: user,
