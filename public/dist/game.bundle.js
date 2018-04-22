@@ -36228,7 +36228,7 @@ class Word {
 }
 
 $(document).ready(() => {
-    const url = 'http://localhost:3000/game.html'
+    const url = 'http://https://desolate-dusk-66849.herokuapp.com/game.html'
     const connection = new MatchConnection()
     const game = new Game(connection)
 
@@ -36327,7 +36327,7 @@ const ActionCable = require("actioncable")
 
 class MatchConnection {
     constructor() {
-        const url = 'ws://localhost:3000/'
+        const url = 'ws://https://desolate-dusk-66849.herokuapp.com/'
         console.log(url)
         this.cable = ActionCable.createConsumer(url + 'cable')
     }

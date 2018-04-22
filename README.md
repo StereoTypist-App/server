@@ -18,4 +18,4 @@ The backend is built with Ruby on Rails using the ActionCable real time communic
 2. Once done, run `bundle install`
 3. Open `config/initializers/devise.rb` and uncomment the token line, or change the token
 4. Run `rails db:migrate` to set up the database
-5. Run `rails server` and head to localhost:3000 on your browser!
+5. Run `rails server` and head to https://desolate-dusk-66849.herokuapp.com on your browser!
