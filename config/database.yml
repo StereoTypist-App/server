@@ -21,10 +21,7 @@ test:
   database: db/test.sqlite3
 
 production:
-  adapter: mysql2
-  encoding: utf8
-  database: stereotypist
-  password: <%= ENV["ST_DB_PASS"] %>
-  username: stereotypist
-  host: localhost
-  port: 3306
+  adapter: postgresql
+  encoding: unicode
+  url: <%= ENV['DATABASE_URL'] %>
+  pool: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
