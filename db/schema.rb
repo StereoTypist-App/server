@@ -12,8 +12,11 @@
 
 ActiveRecord::Schema.define(version: 2018_04_21_202940) do
 
+  # These are extensions that must be enabled in order to support this database
+  enable_extension "plpgsql"
+
   create_table "results", force: :cascade do |t|
-    t.integer "user_id"
+    t.bigint "user_id"
     t.float "wpm"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
@@ -23,7 +26,7 @@ ActiveRecord::Schema.define(version: 2018_04_21_202940) do
   create_table "texts", force: :cascade do |t|
     t.text "text"
     t.string "title"
-    t.integer "user_id"
+    t.bigint "user_id"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["user_id"], name: "index_texts_on_user_id"
