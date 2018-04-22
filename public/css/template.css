@@ -1,0 +1,33 @@
+body {
+  background-color: #1F2B5E;
+  color: #B3BFE6;
+}
+
+.font-400 {
+  font-weight: 400; }
+
+.no-shadow {
+  box-shadow: none !important; }
+
+.light-text {
+  color: #B3BFE6 !important; }
+
+.dark-text {
+  color: #6379BD !important; }
+
+.d-light-text {
+  color: #435cb7 !important; }
+
+.d-dark-text {
+  color: #212D5A !important; }
+
+.mx-auto {
+  margin-left: auto;
+  margin-right: auto; }
+
+@media only screen and (min-device-width: 320px) and (max-device-width: 480px) {
+  .res-table {
+    display: block;
+    overflow-x: auto; } }
+
+/*# sourceMappingURL=template.css.map */
