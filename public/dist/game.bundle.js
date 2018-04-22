@@ -36072,14 +36072,14 @@ class Game {
         const results = data.result
         let users = []
 
-        for (let user in results) {
+        Object.keys(results).forEach((user) => {
             if (user === "active") continue
             const userWPM = results[user]
             users.push({
                 name: user,
                 wpm: userWPM
             })
-        }
+        })
 
         users.sort((a, b) => {
             if (a.wpm > b.wpm)
