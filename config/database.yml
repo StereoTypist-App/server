@@ -21,5 +21,10 @@ test:
   database: db/test.sqlite3
 
 production:
-  <<: *default
-  database: db/production.sqlite3
+  adapter: mysql2
+  encoding: utf8
+  database: <%= ENV["ST_DB_NAME"] %>
+  password: <%= ENV["ST_DB_PASS"] %>
+  username: <%= ENV["ST_DB_USER"] %>
+  host: 127.0.0.1
+  port: 3306
