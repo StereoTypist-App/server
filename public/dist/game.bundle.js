@@ -36365,7 +36365,8 @@ class MatchConnection {
                 }
                 if (data.started) {
                     return startCallback(data)
-                }
+				}
+				console.log("Data Received: ",data)
                 dataCallback(data)
             },
             rejected: () => {
