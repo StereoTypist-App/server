@@ -97,6 +97,90 @@
         
                 <%= yield %>
                 
+         <!-- Login Modal -->
+        <div class="modal fade" id="modalLoginForm" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered" role="document">
+                <div class="modal-content">
+                    <div class="modal-header text-center">
+                        <h4 class="modal-title w-100 font-weight-bold">Sign in</h4>
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    <form id="login_user" action="/users/sign_in" accept-charset="UTF-8" method="post">
+                        <div class="modal-body mx-3">
+                            <div class="md-form mb-5">
+                                <i class="fa fa-envelope prefix grey-text"></i>
+                                <input type="email" name="user[email]" id="user_email_login" class="form-control validate">
+                                <label data-error="wrong" data-success="right" for="user_email_login">Your email</label>
+                            </div>
+
+                            <div class="md-form mb-4">
+                                <i class="fa fa-lock prefix grey-text"></i>
+                                <input type="password" name="user[password]" id="user_password_login" class="form-control validate">
+                                <label data-error="wrong" data-success="right" for="user_password_login">Your password</label>
+                            </div>
+
+                            <div class="md-form mb-4">
+                                <i class="fa fa-lock prefix grey-text hidden" style="visibility: hidden"></i>
+                                <input name="user[remember_me]" type="hidden" value="0">
+                                <input type="checkbox" value="1" name="user[remember_me]" id="user_remember_me">
+                                <label for="user_remember_me">Remember me</label>
+                            </div>
+
+                        </div>
+                        <div class="modal-footer d-flex justify-content-center">
+                            <input class="btn btn-indigo" type="submit" name="commit" value="Log in" data-disable-with="Log in">
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Register Modal -->
+        <div class="modal fade" id="modalRegisterForm" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered" role="document">
+                <div class="modal-content">
+                    <div class="modal-header text-center">
+                        <h4 class="modal-title w-100 font-weight-bold">Sign up</h4>
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    <form id="new_user" action="/users" accept-charset="UTF-8" method="post">
+                        <div class="modal-body mx-3">
+                            <!-- Name -->
+                            <div class="md-form mb-5">
+                                <i class="fa fa-user prefix grey-text"></i>
+                                <input type="text" name="user[display_name]" id="user_display_name" class="form-control validate">
+                                <label data-error="wrong" data-success="right" for="user_display_name">Your name</label>
+                            </div>
+                            <!-- Email -->
+                            <div class="md-form mb-5">
+                                <i class="fa fa-envelope prefix grey-text"></i>
+                                <input type="email" name="user[email]" id="user_email" class="form-control validate">
+                                <label data-error="wrong" data-success="right" for="user_email">Your email</label>
+                            </div>
+                            <!-- Password -->
+                            <div class="md-form mb-5">
+                                <i class="fa fa-lock prefix grey-text"></i>
+                                <input type="password" name="user[password]" id="user_password" class="form-control validate">
+                                <label data-error="wrong" data-success="right" for="user_password">Your password</label>
+                            </div>
+                            <!-- Password Confirmation -->
+                            <div class="md-form mb-4">
+                                <i class="fa fa-lock prefix grey-text"></i>
+                                <input type="password" name="user[password_confirmation]" id="user_password_confirmation" class="form-control validate">
+                                <label data-error="wrong" data-success="right" for="user_password_confirmation">Confirm password</label>
+                            </div>
+
+                        </div>
+                        <div class="modal-footer d-flex justify-content-center">
+                            <input class="btn btn-indigo" type="submit" name="commit" value="Sign up" data-disable-with="Sign up">
+                        </div>
+                    </form>
+                </div>
+            </div>
         
         <!-- JQuery -->
         <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>

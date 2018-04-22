@@ -56,7 +56,7 @@
 .d-light-text {
   color: #435cb7 !important; }
 
-.d-dark-text {
+.d-dark-text, .st-button {
   color: #212D5A !important; }
 
 .mx-auto {

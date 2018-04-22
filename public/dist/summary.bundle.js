@@ -10372,35 +10372,37 @@ const $ = require('jquery')
 class Chart {
     constructor(users) {
         this.option = {
-            width: '450px',
-            height: '450px',
-            donut: true,
-            donutWidth: 100,
-            donutSolid: true,
-            startAngle: 270,
-            showLabel: true
+            // width: '450px',
+            // height: '450px',
+            // donut: true,
+            // donutWidth: 60,
+            // donutSolid: true,
+            // startAngle: 0,
+            distributeSeries: true
         }
         this.series = []
         // to display the same portion for each user in the beginning
         users.forEach(user => {
             this.series.push(1);
         })
+        this.users = users.map((userObj) => { return userObj.name })
         this.data = {
-            labels: users,
+            labels: this.users,
             series: this.series
         }
-        this.chart = new Chartist.Pie('.ct-chart', this.data, this.option);
+        this.chart = new Chartist.Bar('.ct-chart', this.data, this.option);
     }
 
-    updateChart(usersInfo, wpm){
+    updateChart(usersInfo, wpm) {
         this.newUsers = []
         this.newSeries = []
         usersInfo.forEach(userInfo => {
             this.newUsers.push(userInfo.name);
             this.newSeries.push(userInfo.wpm);
         });
-        this.chart.update({labels: this.newUsers,
-                           series: this.newSeries
+        this.chart.update({
+            labels: this.newUsers,
+            series: this.newSeries
         })
         $('#changewpm').text(wpm);
     }
@@ -10415,20 +10417,13 @@ module.exports = Chart
 const Chart = require('./models/chart')
 const $ = require('jquery')
 
-let users = ['bob', 'amy', 'andy', 'zet']
 
 const chart = new Chart(users)
 
 $(document).ready(() => {
    
 	
-	 
-
-	  let newSeries = [{ name: 'user1', wpm: 50},
-	  { name: 'user2', wpm: 40},{ name: 'user3', wpm: 30},{ name: 'user4', wpm: 10}]
-	  setTimeout(()=>{
-		chart.updateChart(newSeries,55)
-	  },2000)
+	
 })
 
 

@@ -5,5 +5,6 @@ Rails.application.routes.draw do
   get "/leaderboard", to: "leaderboard#leaderboard"
   get "/profile", to: "profile#profile"
   get "/profile/:display_name", to: "profile#profile"
-  root to: "game#game"
+  get "/game", to: "game#game"
+  root to: "game#home"
 end
