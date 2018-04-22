@@ -26,5 +26,5 @@ production:
   database: stereotypist
   password: <%= ENV["ST_DB_PASS"] %>
   username: stereotypist
-  host: 127.0.0.1
+  host: localhost
   port: 3306
