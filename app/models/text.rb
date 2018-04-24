@@ -4,4 +4,9 @@ class Text < ApplicationRecord
     validates :title, presence: true, length: {minimum: 6, maximum: 40}
 
     belongs_to :user
+
+    def self.get_text_array()
+        text = Text.order("RANDOM()").limit(1)[0]
+        return text.split('\n',-1)
+    end
 end

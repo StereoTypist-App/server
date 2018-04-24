@@ -50,7 +50,7 @@ class MatchChannel < ApplicationCable::Channel
     if !@@matches.key?(params[:match_id]) then
       @@matches[params[:match_id]] = Hash.new
       @@matches[params[:match_id]]["active"] = false
-      @@texts = load_text(1)
+      @@texts = Text.get_text_array()
     end
 
     #don't allow users to join active matches once started

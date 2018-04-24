@@ -9,7 +9,7 @@
     <div class="col-8 m-0 p-0">
         <div class="card">
             <div class="card-body">
-                <p><strong>Submit texts to be played in rounds here! </strong>By reaching a score of at least 50 WPM, you can now contribute texts to the pool of texts used by the game!</p>
+                <p><strong>Submit texts to be played in rounds here! </strong>By reaching a score of at least 50 WPM, you can now contribute texts to the pool of texts used by the game! Newlines between paragraphs will help format the text for the game so the user doesn't type it all at once.</p>
                 <%= form_for @text do |f| %>
                 <div class="md-form">
                     <%= f.text_area(:text, size: '40x10', class: 'form-control md-textarea') %>
