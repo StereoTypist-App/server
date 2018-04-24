@@ -6,7 +6,7 @@ class Text < ApplicationRecord
     belongs_to :user
 
     def self.get_text_array()
-        text = Text.order("RANDOM()").limit(1)[0]
+        text = Text.order("RANDOM()").limit(1)[0].text
         return text.split('\n',-1)
     end
 end
