@@ -6,7 +6,7 @@ class TextsController < ApplicationController
 
     def create
         return redirect_to "/" if !current_user
-        if current_user && current_user.results.count > 0 && order(wpm: :desc).limit(1)[0].wpm >= 50 then
+        if current_user && current_user.results.count > 0 && current_user.results.order(wpm: :desc).limit(1)[0].wpm >= 50 then
             @text = Text.new
             @text.title = params[:text][:title]
             @text.text = params[:text][:text]

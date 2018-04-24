@@ -9,7 +9,7 @@
         <li class="nav-item">
             <a class="nav-link light-text" href="/leaderboard">Leaderboard</a>
         </li>
-        <% if current_user.results.count > 0 && order(wpm: :desc).limit(1)[0].wpm >= 50 %>
+        <% if current_user.results.count > 0 && current_user.results.order(wpm: :desc).limit(1)[0].wpm >= 50 %>
         <li class="nav-item">
             <a class="nav-link light-text" href="/texts/new">Submit Texts</a>
         </li>
