@@ -1,4 +1,4 @@
-<% if @user != nil then %>
+<% if @user != nil && @user.results.count > 0 then %>
 <div class="row m-0 mt-4 mb-3">
             <div class="col text-center text-white light-text font-400">
                 <h1 class=""><%= @user.display_name %>'s profile</h1>
@@ -99,7 +99,10 @@
             </div>
             <div class="col-2 m-0 p-0"></div>
         </div>
+<% elsif @user.results.count == 0 %>
+    <br/>
+    <h1 style="color: #B3BFE6; text-align: center">This user does not have enough data.</h1>
 <% else %>
-    <br/>>
-    <h1 style="color: #B3BFE6; text-align: center">Profile not found</h1>
+    <br/>
+    <h1 style="color: #B3BFE6; text-align: center">Profile not found.</h1>
 <% end %>

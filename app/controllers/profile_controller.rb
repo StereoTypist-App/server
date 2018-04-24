@@ -8,7 +8,7 @@ class ProfileController < ApplicationController
             @results = @user.results.order(wpm: :desc).limit(25) if @user
         end
         
-        if @user then
+        if @user && @user.results.count > 0 then
             @firstResult = @user.results.order(created_at: :asc).limit(1)[0]
             @lastResult = @user.results.order(created_at: :desc).limit(1)[0]
             @avgWPM = @user.results.average(:wpm)
