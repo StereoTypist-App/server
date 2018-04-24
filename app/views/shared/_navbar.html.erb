@@ -1,0 +1,28 @@
+<!-- Links -->
+ <!-- Collapsible content -->
+<div class="collapse navbar-collapse" id="navbarNav">
+    <ul class="navbar-nav ml-auto">
+    <% if user_signed_in? then %>
+        <li class="nav-item">
+            <a class="nav-link light-text" href="/profile"><%= current_user.display_name %>'s Profile</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link light-text" href="/leaderboard">Leaderboard</a>
+        </li>
+        <li class="nav-item">
+            <%= link_to "Sign out", destroy_user_session_path, class: "nav-link light-text" %>
+        </li>
+    <% else %>
+        <li class="nav-item">
+            <a class="nav-link light-text">Anonymous User</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link light-text" href="#" data-toggle="modal" data-target="#modalLoginForm">Login</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link light-text" href="#" data-toggle="modal" data-target="#modalRegisterForm">Register</a>
+        </li>
+    <% end %>
+    </ul>
+</div>
+<!-- Links -->
