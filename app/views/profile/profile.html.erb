@@ -1,13 +1,105 @@
 <% if @user != nil then %>
-    <h1><%= @user.display_name %>'s profile</h1>
-    <p>Typing here since <%= @user.created_at %></p>
+<div class="row m-0 mt-4 mb-3">
+            <div class="col text-center text-white light-text font-400">
+                <h1 class=""><%= @user.display_name %>'s profile</h1>
+            </div>
+        </div>
 
-    <h2><%= @user.display_name %>'s top results</h2>
-    <ul>
-    <% @results.each do |result| %>
-    <li>On <%= result.created_at %>: <%= result.wpm %> WPM</li>
-    <% end %>
-    </ul>
+
+        <div class="row m-0">
+            <div class="col-2 m-0 p-0"></div>
+            <div class="col-8 m-0 p-0">
+
+                <div class="card">
+                    <div class="card-body">
+
+
+                        <!-- code for records -->
+                        <div class="row">
+                            <div class="col-md-4 mb-4">
+                                <div class="card mdb-color lighten-2 text-center z-depth-2">
+                                    <div class="card-body">
+                                        <p class="white-text mb-0">Best WPM: <%= @bestWPM %></p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="card mdb-color lighten-2 text-center z-depth-2">
+                                    <div class="card-body">
+                                        <p class="white-text mb-0">First Played: <%= @firstResult.created_at.strftime("%Y/%m/%d %H:%M") %></p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="card mdb-color lighten-2 text-center z-depth-2">
+                                    <div class="card-body">
+                                        <p class="white-text mb-0">Total Games Played: <%= @totalGames %></p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- end of first row -->
+                        <div class="row mt-2">
+                            <div class="col-md-4 mb-4">
+                                <div class="card mdb-color lighten-2 text-center z-depth-2">
+                                    <div class="card-body">
+                                        <p class="white-text mb-0">Average WPM: <%= @avgWPM %></p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="card mdb-color lighten-2 text-center z-depth-2">
+                                    <div class="card-body">
+                                        <p class="white-text mb-0">Last Played: <%= @lastResult.created_at.strftime("%Y/%m/%d %H:%M") %></p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="card mdb-color lighten-2 text-center z-depth-2">
+                                    <div class="card-body">
+                                        <p class="white-text mb-0">Date Joined: <%= @user.created_at.strftime("%Y/%m/%d %H:%M") %></p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- end of second row -->
+                        <div class="row mb-2">
+                            <div class="col text-center font-400">
+                                <h2><%= @user.display_name %>'s top results</h2>                                
+                            </div>
+                        </div>
+                        <!--Table-->
+                        <table class="table table-responsive-md">
+                            <!--Table head-->
+                            <thead class="deep-purple lighten-1 text-white">
+                                <tr>
+                                    <th class="th-xs">#</th>
+                                    <th class="th-lg">Time</th>
+                                    <th class="th-lg">WPM</th>
+                                </tr>
+                            </thead>
+                            <!--Table head-->
+
+                            <!--Table body-->
+                            <tbody>
+                                <% @results.each_with_index do |result, index| %>
+                                    <tr>
+                                        <td><%= index + 1%></th>
+                                        <td><%= result.created_at %></td>
+                                        <td><%= result.wpm %> WPM</td>
+                                    </tr>
+                                <% end %>
+                            </tbody>
+                            <!--Table body-->
+
+                        </table>
+                        <!--Table-->
+                    </div>
+                </div>
+            </div>
+            <div class="col-2 m-0 p-0"></div>
+        </div>
 <% else %>
-    <h1>Profile not found</h1>
+    <br/>>
+    <h1 style="color: #B3BFE6; text-align: center">Profile not found</h1>
 <% end %>
