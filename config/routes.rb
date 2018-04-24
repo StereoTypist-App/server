@@ -7,4 +7,6 @@ Rails.application.routes.draw do
   get "/profile/:display_name", to: "profile#profile"
   get "/game", to: "game#game"
   root to: "game#home"
+
+  resources :texts, only: [:new,:create]
 end

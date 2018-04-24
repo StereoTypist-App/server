@@ -1,0 +1,33 @@
+<div class="row m-0 mt-4 mb-3">
+    <div class="col text-center text-white light-text font-400">
+            <h1 class="">Submit Text</h1>
+    </div>
+</div>
+
+<div class="row m-0">
+    <div class="col-2 m-0 p-0"></div>
+    <div class="col-8 m-0 p-0">
+        <div class="card">
+            <div class="card-body">
+                <p><strong>Submit texts to be played in rounds here! </strong>By reaching a score of at least 50 WPM, you can now contribute texts to the pool of texts used by the game!</p>
+                <%= form_for @text do |f| %>
+                <div class="md-form">
+                    <%= f.text_area(:text, size: '40x10', class: 'form-control md-textarea') %>
+                    <label for="textArea">Text to submit</label>
+                </div>
+
+                <div class="md-form">
+                    <%= f.text_field(:title, class: 'form-control') %>
+                    <label for="textArea">Title of text</label>
+                </div>
+
+                <div class="text-center mt-4">
+                    <%= f.submit("Create", class: 'btn btn-default') %>
+                </div>
+                <% end %>
+            </div>
+        </div>
+    </div>
+    <div class="col-2 m-0 p-0"></div>
+</div>
+
