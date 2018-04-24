@@ -96,6 +96,11 @@
                         <!--Table-->
                     </div>
                 </div>
+                <% if @user.id  == current_user.id then %>
+                    <div class="text-center mt-4">
+                        <a href="/users/edit" class="btn btn-default">Edit My Account</a>
+                    </div>
+                <% end %>
             </div>
             <div class="col-2 m-0 p-0"></div>
         </div>
