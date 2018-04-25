@@ -72,7 +72,7 @@ class MatchChannel < ApplicationCable::Channel
 
     Thread.new do
       sleep 1
-      ActionCable.server.broadcast "match:#{params[:match_id]}", {complete: false, result: @@matches[params[:match_id]]}
+      ActionCable.server.broadcast "match:#{params[:match_id]}", {complete: false, duration: MATCH_DURATION, result: @@matches[params[:match_id]]}
     end
   end
 
@@ -83,7 +83,7 @@ class MatchChannel < ApplicationCable::Channel
       end
       @@matches[params[:match_id]]["active"] = true
       puts "Current Match Activated: #{@@matches[params[:match_id]]["active"]}"
-      ActionCable.server.broadcast "match:#{params[:match_id]}", {started: true, texts: @@texts}
+      ActionCable.server.broadcast "match:#{params[:match_id]}", {started: true, duration: MATCH_DURATION, texts: @@texts}
       Thread.new do
         sleep MATCH_DURATION + DELTA #change later
         @@matches[params[:match_id]].delete("active")
