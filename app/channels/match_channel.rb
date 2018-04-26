@@ -7,7 +7,7 @@ class MatchChannel < ApplicationCable::Channel
 
   @@matchmaking_started = false
 
-  MATCH_DURATION = 15
+  MATCH_DURATION = 60
   DELTA = 0.5
 
   def build_match_array
