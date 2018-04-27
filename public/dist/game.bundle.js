@@ -698,6 +698,561 @@ module.exports = function (encodedURI) {
 };
 
 },{}],3:[function(require,module,exports){
+/**
+ * @license easytimer.js v1.0
+ * Created by Albert González
+ * Licensed under The MIT License.
+ *
+* @class Timer
+*/
+
+var module;
+
+var Timer = (
+
+    function (module) {
+        'use strict';
+
+        /*
+         * Polyfill por IE9, IE10 and IE11
+         */
+        var CustomEvent = typeof window !== 'undefined' ? window.CustomEvent : undefined;
+
+        if (typeof window !== 'undefined' && typeof CustomEvent !== "function" ) {
+            CustomEvent = function ( event, params ) {
+                params = params || { bubbles: false, cancelable: false, detail: undefined };
+                var evt = document.createEvent( 'CustomEvent' );
+                evt.initCustomEvent( event, params.bubbles, params.cancelable, params.detail );
+                return evt;
+            };
+
+            CustomEvent.prototype = window.Event.prototype;
+
+            window.CustomEvent = CustomEvent;
+        }
+
+        /*
+         * General functions, variables and constants
+         */
+        var SECOND_TENTHS_PER_SECOND = 10,
+            SECONDS_PER_MINUTE = 60,
+            SECOND_TENTHS_PER_MINUTE = 600,
+            MINUTES_PER_HOUR = 60,
+            SECONDS_PER_HOUR = 3600,
+            SECOND_TENTHS_PER_HOUR = 36000,
+            HOURS_PER_DAY = 24,
+
+            SECOND_TENTHS_POSITION = 0,
+            SECONDS_POSITION = 1,
+            MINUTES_POSITION = 2,
+            HOURS_POSITION = 3,
+            DAYS_POSITION = 4,
+
+            SECOND_TENTHS = 'secondTenths',
+            SECONDS = 'seconds',
+            MINUTES = 'minutes',
+            HOURS = 'hours',
+            DAYS = 'days',
+
+            unitsInMilliseconds = {
+                secondTenths: 100,
+                seconds: 1000,
+                minutes: 60000,
+                hours: 3600000,
+                days: 86400000
+            },
+
+            events = module && module.exports? require('events') : undefined,
+
+            prototype;
+
+        function hasDOM() {
+            return typeof document !== 'undefined';
+        }
+
+        function hasEventEmitter() {
+            return events;
+        }
+
+        function mod(number, module) {
+            return ((number % module) + module) % module;
+        }
+
+        function leftPadding(string, padLength, character) {
+            var i,
+                characters = '';
+
+            for (i = 0; i < padLength; i = i + 1) {
+                characters += String(character);
+            }
+
+            return (characters + string).slice(-characters.length);
+        }
+
+        /**
+         * [TimeCounter Stores the units counted by the timer]
+         */
+        function TimeCounter() {
+            this.secondTenths = 0;
+            this.seconds = 0;
+            this.minutes = 0;
+            this.hours = 0;
+            this.days = 0;
+
+            /**
+             * [toString convert the counted values on a string]
+             * @param  {[array]} units           [array with the units to display]
+             * @param  {[string]} separator       [separator of the units]
+             * @param  {[integer]} leftZeroPadding [number of zero padding]
+             * @return {[string]}                 [result string]
+             */
+            this.toString = function(units, separator, leftZeroPadding) {
+                units = units || ['hours', 'minutes', 'seconds'];
+                separator = separator || ':';
+                leftZeroPadding = leftZeroPadding || 2;
+
+                var stringTime,
+                    arrayTime = [],
+                    i,
+                    zeros = '';
+
+                for (i = 0; i < leftZeroPadding; i = i + 1) {
+                    zeros += '0';
+                }
+
+                for (i = 0; i < units.length; i = i + 1) {
+                    if (this[units[i]] !== undefined) {
+                        arrayTime.push(leftPadding(this[units[i]], leftZeroPadding, '0'));
+                    }
+                }
+                stringTime = arrayTime.join(separator);
+
+                return stringTime;
+            };
+        }
+
+        /**
+         * [Timer Timer/Chronometer/Countdown compatible with AMD and NodeJS.
+         * Can update time values with different time intervals: tenth of seconds,
+         * seconds, minutes and hours.]
+         */
+        function Timer() {
+
+            /*
+             * PRIVATE Variables and Functions
+             */
+            var counters = new TimeCounter(),
+                totalCounters =new TimeCounter(),
+
+                intervalId,
+                eventEmitter = hasDOM()? document.createElement('span') :
+                    hasEventEmitter()? new events.EventEmitter() : undefined,
+                running = false,
+                paused = false,
+                precision,
+                valueToAdd,
+                customCallback,
+                timerConfig = {},
+                target,
+                startValues,
+                countdown;
+
+            function isCountdownTimer() {
+                return timerConfig.countdown;
+            }
+
+            function updateCounters(counter, value) {
+                counters[counter] += value;
+                totalCounters[counter] += value;
+            }
+
+            function updateDays(value) {
+                updateCounters(DAYS, value);
+
+                dispatchEvent('daysUpdated');
+            }
+
+            function updateHours(value) {
+                updateCounters(HOURS, value);
+
+                counters.hours = mod(counters.hours, HOURS_PER_DAY);
+
+                if ((isCountdownTimer() && counters.hours === HOURS_PER_DAY - 1) ||
+                        (!isCountdownTimer() && counters.hours === 0)) {
+                    updateDays(value);
+                }
+
+                if (precision === HOURS) {
+                    totalCounters[MINUTES] += isCountdownTimer() ? -MINUTES_PER_HOUR : MINUTES_PER_HOUR;
+                    totalCounters[SECONDS] += isCountdownTimer() ? -SECONDS_PER_HOUR : SECONDS_PER_HOUR;
+                    totalCounters[SECOND_TENTHS] += isCountdownTimer() ? -SECOND_TENTHS_PER_HOUR : SECOND_TENTHS_PER_HOUR;
+                }
+
+                dispatchEvent('hoursUpdated');
+            }
+
+            function updateMinutes(value) {
+                updateCounters(MINUTES, value);
+
+                counters.minutes = mod(counters.minutes, MINUTES_PER_HOUR);
+
+                if ((isCountdownTimer() && counters.minutes === MINUTES_PER_HOUR - 1) ||
+                    (!isCountdownTimer() && counters.minutes === 0)) {
+                    updateHours(value);
+                }
+
+                if (precision === MINUTES) {
+                    totalCounters[SECONDS] += isCountdownTimer() ? -SECONDS_PER_MINUTE : SECONDS_PER_MINUTE;
+                    totalCounters[SECOND_TENTHS] += isCountdownTimer() ? -SECOND_TENTHS_PER_MINUTE : SECOND_TENTHS_PER_MINUTE;
+                }
+
+                dispatchEvent('minutesUpdated');
+            }
+
+            function updateSeconds(value) {
+                updateCounters(SECONDS, value);
+
+                counters.seconds = mod(counters.seconds, SECONDS_PER_MINUTE);
+
+                if ((isCountdownTimer() && counters.seconds === SECONDS_PER_MINUTE - 1) ||
+                    (!isCountdownTimer() && counters.seconds === 0)) {
+                    updateMinutes(value);
+                }
+
+                if (precision === SECONDS) {
+                    totalCounters[SECOND_TENTHS] += isCountdownTimer() ? -SECOND_TENTHS_PER_SECOND : SECOND_TENTHS_PER_SECOND;
+                }
+
+                dispatchEvent('secondsUpdated');
+            }
+
+            function updateSecondTenths(value) {
+                updateCounters(SECOND_TENTHS, value);
+
+                counters.secondTenths = mod(counters.secondTenths, SECOND_TENTHS_PER_SECOND);
+
+                if ((isCountdownTimer() && counters.secondTenths === SECOND_TENTHS_PER_SECOND - 1) ||
+                    (!isCountdownTimer() && counters.secondTenths === 0)) {
+                    updateSeconds(value);
+                }
+
+                dispatchEvent('secondTenthsUpdated');
+            }
+
+            function stopTimer() {
+                clearInterval(intervalId);
+                intervalId = undefined;
+                running = false;
+                paused = false;
+            }
+
+            function startTimer() {
+                var callback,
+                    interval = unitsInMilliseconds[precision];
+
+                switch (precision) {
+                case DAYS:
+                    callback = updateDays;
+                    break;
+                case HOURS:
+                    callback = updateHours;
+                    break;
+                case MINUTES:
+                    callback =  updateMinutes;
+                    break;
+                case SECOND_TENTHS:
+                    callback =  updateSecondTenths;
+                    break;
+                default:
+                    callback = updateSeconds;
+                }
+
+                intervalId = setInterval(
+                    function () {
+                        callback(valueToAdd);
+                        customCallback(counters);
+                        if (isTargetAchieved()) {
+                            dispatchEvent('targetAchieved');
+                            stop();
+                        }
+                    },
+                    interval
+                );
+
+                running = true;
+                paused = false;
+            }
+
+            function isRegularTimerTargetAchieved() {
+                return counters.hours > target[HOURS_POSITION]
+                    || (counters.hours === target[HOURS_POSITION] && (counters.minutes > target[MINUTES_POSITION]
+                        || (counters.minutes === target[MINUTES_POSITION]) && counters.seconds >= target[SECONDS_POSITION]));
+            }
+
+            function isCountdownTimerTargetAchieved() {
+                return counters.hours < target[HOURS_POSITION]
+                    || (counters.hours === target[HOURS_POSITION] && (counters.minutes < target[MINUTES_POSITION]
+                    || (counters.minutes === target[MINUTES_POSITION] && (counters.seconds < target[SECONDS_POSITION]
+                    || (counters.seconds === target[SECONDS_POSITION] && (counters.secondTenths < target[SECOND_TENTHS_POSITION]
+                    || counters.secondTenths === target[SECOND_TENTHS_POSITION] ))))));
+            }
+
+            function isTargetAchieved() {
+                return target instanceof Array &&
+                    (timerConfig.countdown && isCountdownTimerTargetAchieved() || !timerConfig.countdown && isRegularTimerTargetAchieved());
+            }
+
+            function resetCounters() {
+                for (var counter in counters) {
+                    if(counters.hasOwnProperty(counter) && typeof counters[counter] === 'number'){
+                        counters[counter] = 0;
+                    }
+                }
+
+                for (var counter in totalCounters) {
+                    if(totalCounters.hasOwnProperty(counter) && typeof totalCounters[counter] === 'number'){
+                        totalCounters[counter] = 0;
+                    }
+                }
+            }
+
+            function setParams(params) {
+                precision = params && typeof params.precision === 'string' ? params.precision : SECONDS;
+                customCallback = params && typeof params.callback === 'function'? params.callback : function () {};
+                valueToAdd = params && params.countdown === true? -1 : 1;
+                countdown = params && params.countdown == true;
+                if (params && (typeof params.target === 'object')) { setTarget(params.target)};
+                if (params && (typeof params.startValues === 'object')) { setStartValues(params.startValues)};
+                target = target || !countdown? target : [0, 0, 0, 0, 0];
+
+                timerConfig = {
+                    precision: precision,
+                    callback: customCallback,
+                    countdown: typeof params === 'object' && params.countdown == true,
+                    target: target,
+                    startValues: startValues
+                }
+            }
+
+            function configInputValues(inputValues) {
+                var secondTenths, seconds, minutes, hours, days, values;
+                if (typeof inputValues === 'object') {
+                    if (inputValues instanceof Array) {
+                        if (inputValues.length != 5) {
+                            throw new Error('Array size not valid');
+                        }
+                        values = inputValues;
+                    } else {
+                        values = [
+                            inputValues.secondTenths || 0, inputValues.seconds || 0,
+                            inputValues.minutes || 0, inputValues.hours || 0,
+                            inputValues.days || 0
+                        ];
+                    }
+                }
+
+                for (var i = 0; i < inputValues.length; i = i + 1) {
+                    if (inputValues[i] < 0) {
+                        inputValues[i] = 0;
+                    }
+                }
+
+                secondTenths = values[SECOND_TENTHS_POSITION];
+                seconds = values[SECONDS_POSITION] + Math.floor(secondTenths / SECOND_TENTHS_PER_SECOND);
+                minutes = values[MINUTES_POSITION] + Math.floor(seconds / SECONDS_PER_MINUTE);
+                hours = values[HOURS_POSITION] + Math.floor(minutes / MINUTES_PER_HOUR);
+                days = values[DAYS_POSITION] +  Math.floor(hours / HOURS_PER_DAY);
+
+                values[SECOND_TENTHS_POSITION] = secondTenths % SECOND_TENTHS_PER_SECOND;
+                values[SECONDS_POSITION] = seconds % SECONDS_PER_MINUTE;
+                values[MINUTES_POSITION] = minutes % MINUTES_PER_HOUR;
+                values[HOURS_POSITION] = hours % HOURS_PER_DAY;
+                values[DAYS_POSITION] = days;
+
+                return values;
+            }
+
+            function setTarget(inputTarget) {
+                target = configInputValues(inputTarget);
+
+            }
+
+            function setStartValues(inputStartValues) {
+                startValues = configInputValues(inputStartValues);
+                counters.secondTenths = startValues[SECOND_TENTHS_POSITION];
+                counters.seconds = startValues[SECONDS_POSITION];
+                counters.minutes = startValues[MINUTES_POSITION];
+                counters.hours = startValues[HOURS_POSITION]
+                counters.days = startValues[DAYS_POSITION]
+
+                totalCounters.days = counters.days;
+                totalCounters.hours = totalCounters.days * HOURS_PER_DAY + counters.hours;
+                totalCounters.minutes = totalCounters.hours * MINUTES_PER_HOUR + counters.minutes;
+                totalCounters.seconds = totalCounters.minutes * SECONDS_PER_MINUTE + counters.seconds;
+                totalCounters.secondTenths = totalCounters.seconds * SECOND_TENTHS_PER_SECOND + counters.secondTenths;
+            }
+
+            /*
+             * PUBLIC functions
+             */
+
+            /**
+             * [stop stops the timer and resets the counters. Dispatch stopped event]
+             */
+            function stop() {
+                stopTimer();
+                resetCounters();
+                dispatchEvent('stopped');
+            }
+
+            /**
+             * [start starts the timer configured by the params object. Dispatch started event]
+             * @param  {[object]} params [Configuration parameters]
+             */
+            function start(params) {
+                if (this.isRunning()) {
+                    throw new Error('Timer already running');
+                }
+
+                if (!this.isPaused()) {
+                    setParams(params);
+                }
+                if (!isTargetAchieved()) {
+                    startTimer();
+                    dispatchEvent('started');
+                }
+            }
+
+            /**
+             * [pause stops the timer without resetting the counters. The timer it can be restarted with start function.
+             * Dispatch paused event]
+             * @return {[type]} [description]
+             */
+            function pause() {
+                stopTimer();
+                paused = true;
+                dispatchEvent('paused');
+            }
+
+            /**
+             * [addEventListener Adds event listener to the timer]
+             * @param {[string]} event      [event to listen]
+             * @param {[function]} listener   [the event listener function]
+             */
+            function addEventListener(event, listener) {
+                if (hasDOM()) {
+                    eventEmitter.addEventListener(event, listener);
+                } else if (hasEventEmitter()) {
+                    eventEmitter.on(event, listener)
+                }
+            }
+
+            /**
+             * [removeEventListener Removes event listener to the timer]
+             * @param  {[string]} event    [event to remove listener]
+             * @param  {[function]} listener [listener to remove]
+             */
+            function removeEventListener(event, listener) {
+                if (hasDOM()) {
+                    eventEmitter.removeEventListener(event, listener);
+                } else if (hasEventEmitter()) {
+                    eventEmitter.removeListener(event, listener);
+                }
+            }
+
+            /**
+             * [dispatchEvent dispatchs an event]
+             * @param  {string} event [event to dispatch]
+             */
+            function dispatchEvent(event) {
+                if (hasDOM()) {
+                    eventEmitter.dispatchEvent(new CustomEvent(event));
+                } else if (hasEventEmitter()) {
+                    eventEmitter.emit(event)
+                }
+            }
+
+            /**
+             * [isRunning return true if the timer is running]
+             * @return {Boolean}
+             */
+            function isRunning() {
+                return running;
+            }
+
+            /**
+             * [isPaused returns true if the timer is paused]
+             * @return {Boolean}
+             */
+            function isPaused() {
+                return paused;
+            }
+
+            /**
+             * [getTimeValues returns the counter with the current timer values]
+             * @return {[TimeCounter]}
+             */
+            function getTimeValues() {
+                return counters;
+            };
+
+            /**
+             * [getTotalTimeValues returns the counter with the current timer total values]
+             * @return {[TimeCounter]}
+             */
+            function getTotalTimeValues() {
+                return totalCounters;
+            };
+
+            /**
+             * [getConfig returns the configuration paramameters]
+             * @return {[type]}
+             */
+            function getConfig () {
+                return timerConfig;
+            };
+
+            /**
+             * Public API
+             * Definition of Timer instance public functions
+             */
+            if (typeof this !== 'undefined') {
+                this.start= start;
+
+                this.pause = pause;
+
+                this.stop = stop;
+
+                this.isRunning = isRunning;
+
+                this.isPaused = isPaused;
+
+                this.getTimeValues = getTimeValues;
+
+                this.getTotalTimeValues = getTotalTimeValues;
+
+                this.getConfig = getConfig;
+
+                this.addEventListener = addEventListener
+
+                this.removeEventListener = removeEventListener;
+            }
+
+        };
+
+        if (module && module.exports) {
+            module.exports = Timer;
+        } else if (typeof define === 'function' && define.amd) {
+            define([], function() {
+                return Timer;
+            });
+        }
+
+        return  Timer;
+    }(module)
+);
+
+},{"events":22}],4:[function(require,module,exports){
 /*!
  * jQuery JavaScript Library v3.3.1
  * https://jquery.com/
@@ -11063,7 +11618,7 @@ if ( !noGlobal ) {
 return jQuery;
 } );
 
-},{}],4:[function(require,module,exports){
+},{}],5:[function(require,module,exports){
 'use strict';
 const strictUriEncode = require('strict-uri-encode');
 const decodeComponent = require('decode-uri-component');
@@ -11279,11 +11834,11 @@ exports.parseUrl = (input, options) => {
 	};
 };
 
-},{"decode-uri-component":2,"strict-uri-encode":15}],5:[function(require,module,exports){
+},{"decode-uri-component":2,"strict-uri-encode":16}],6:[function(require,module,exports){
 'use strict';
 module.exports = require('./lib/index');
 
-},{"./lib/index":10}],6:[function(require,module,exports){
+},{"./lib/index":11}],7:[function(require,module,exports){
 'use strict';
 
 var randomFromSeed = require('./random/random-from-seed');
@@ -11383,7 +11938,7 @@ module.exports = {
     shuffled: getShuffled
 };
 
-},{"./random/random-from-seed":13}],7:[function(require,module,exports){
+},{"./random/random-from-seed":14}],8:[function(require,module,exports){
 'use strict';
 
 var encode = require('./encode');
@@ -11433,7 +11988,7 @@ function build(clusterWorkerId) {
 
 module.exports = build;
 
-},{"./alphabet":6,"./encode":9}],8:[function(require,module,exports){
+},{"./alphabet":7,"./encode":10}],9:[function(require,module,exports){
 'use strict';
 var alphabet = require('./alphabet');
 
@@ -11452,7 +12007,7 @@ function decode(id) {
 
 module.exports = decode;
 
-},{"./alphabet":6}],9:[function(require,module,exports){
+},{"./alphabet":7}],10:[function(require,module,exports){
 'use strict';
 
 var randomByte = require('./random/random-byte');
@@ -11473,7 +12028,7 @@ function encode(lookup, number) {
 
 module.exports = encode;
 
-},{"./random/random-byte":12}],10:[function(require,module,exports){
+},{"./random/random-byte":13}],11:[function(require,module,exports){
 'use strict';
 
 var alphabet = require('./alphabet');
@@ -11540,7 +12095,7 @@ module.exports.characters = characters;
 module.exports.decode = decode;
 module.exports.isValid = isValid;
 
-},{"./alphabet":6,"./build":7,"./decode":8,"./encode":9,"./is-valid":11,"./util/cluster-worker-id":14}],11:[function(require,module,exports){
+},{"./alphabet":7,"./build":8,"./decode":9,"./encode":10,"./is-valid":12,"./util/cluster-worker-id":15}],12:[function(require,module,exports){
 'use strict';
 var alphabet = require('./alphabet');
 
@@ -11561,7 +12116,7 @@ function isShortId(id) {
 
 module.exports = isShortId;
 
-},{"./alphabet":6}],12:[function(require,module,exports){
+},{"./alphabet":7}],13:[function(require,module,exports){
 'use strict';
 
 var crypto = typeof window === 'object' && (window.crypto || window.msCrypto); // IE 11 uses window.msCrypto
@@ -11577,7 +12132,7 @@ function randomByte() {
 
 module.exports = randomByte;
 
-},{}],13:[function(require,module,exports){
+},{}],14:[function(require,module,exports){
 'use strict';
 
 // Found this seed-based random generator somewhere
@@ -11604,16 +12159,16 @@ module.exports = {
     seed: setSeed
 };
 
-},{}],14:[function(require,module,exports){
+},{}],15:[function(require,module,exports){
 'use strict';
 
 module.exports = 0;
 
-},{}],15:[function(require,module,exports){
+},{}],16:[function(require,module,exports){
 'use strict';
 module.exports = str => encodeURIComponent(str).replace(/[!'()*]/g, x => `%${x.charCodeAt(0).toString(16).toUpperCase()}`);
 
-},{}],16:[function(require,module,exports){
+},{}],17:[function(require,module,exports){
 (function(root, factory){
 
 	//UMD
@@ -35996,7 +36551,7 @@ module.exports = str => encodeURIComponent(str).replace(/[!'()*]/g, x => `%${x.c
 	
 	return Tone;
 }));
-},{}],17:[function(require,module,exports){
+},{}],18:[function(require,module,exports){
 const $ = require('jquery')
 const shortid = require('shortid')
 const queryString = require('query-string')
@@ -36004,9 +36559,11 @@ const Tone = require('tone')
 const Texts = require('./texts')
 const MatchConnection = require('./models/match')
 const Chart = require('./models/chart')
+const Timer = require('easytimer')
 
 class Game {
     constructor(connection) {
+        this.timer = null
         this.paragraph = null
         this.numCorrect = 0
         this._wpm = 0
@@ -36062,6 +36619,29 @@ class Game {
         }, 4000)
     }
 
+    startMatchTimer(matchTime) {
+        this.timer = new Timer()
+        this.timer.start({ countdown: true, startValues: { seconds: matchTime } })
+        this.timer.addEventListener('secondsUpdated', (e) => {
+            $('#timeleft').html(`
+                <i class="fa fa-clock prefix"></i>
+                <span>${this.timer.getTimeValues().toString()}</span>
+            `)
+        })
+
+        $('#timeleft').html(`
+            <i class="fa fa-clock prefix"></i>
+            <span>${matchTime}</span>
+        `)
+    }
+
+    endMatchTimer() {
+        $('#timeleft').hide()
+        if(this.timer) {
+            this.timer.stop()
+        }
+    }
+
     setText(rawText) {
         this.paragraph = new Paragraph(rawText)
         this.paragraph.renderTextToElement(this.textContainer)
@@ -36101,7 +36681,7 @@ class Game {
             return 0
         })
 
-        if(!this.chart) {
+        if (!this.chart) {
             this.chart = new Chart(users)
         }
 
@@ -36267,8 +36847,9 @@ $(document).ready(() => {
     console.log('UID', uid)
     let texts = null
     connection.joinMatch(uid, (data) => {
+        console.log(data)
         texts = new Texts(data.texts)
-        
+
         $('#promptTitle').text("Type this text:")
         $('#startButton').hide()
         $('#gameUrl').hide()
@@ -36278,16 +36859,21 @@ $(document).ready(() => {
         $('#chart-row').show()
 
         game.setText(texts.getText())
-        game.countdown(() => game.start())
+        game.countdown(() => {
+            game.start()
+            game.startMatchTimer(data.duration)
+        })
     }, (data) => {
         console.log("Match Done")
         game.updateTable(data)
+        game.endMatchTimer()
         game.end()
     }, (data) => {
+        console.log(data)
         game.updateTable(data)
     })
 })
-},{"./models/chart":18,"./models/match":19,"./texts":20,"jquery":3,"query-string":4,"shortid":5,"tone":16}],18:[function(require,module,exports){
+},{"./models/chart":19,"./models/match":20,"./texts":21,"easytimer":3,"jquery":4,"query-string":5,"shortid":6,"tone":17}],19:[function(require,module,exports){
 
 const $ = require('jquery')
 
@@ -36334,12 +36920,13 @@ module.exports = Chart
 
 
 
-},{"jquery":3}],19:[function(require,module,exports){
+},{"jquery":4}],20:[function(require,module,exports){
 const ActionCable = require("actioncable")
 
 class MatchConnection {
     constructor() {
-		const url = 'wss://stereotypist.herokuapp.com/'
+        const url = 'wss://stereotypist.herokuapp.com/'
+        // const url = 'ws://10.186.74.204:3000/'
         console.log(url)
         this.cable = ActionCable.createConsumer(url + 'cable')
     }
@@ -36377,8 +36964,7 @@ class MatchConnection {
                 }
                 if (data.started) {
                     return startCallback(data)
-				}
-				console.log("Data Received: ",data)
+                }
                 dataCallback(data)
             },
             rejected: () => {
@@ -36399,7 +36985,7 @@ class MatchConnection {
 }
 
 module.exports = MatchConnection
-},{"actioncable":1}],20:[function(require,module,exports){
+},{"actioncable":1}],21:[function(require,module,exports){
 module.exports = class Texts {
     constructor(textArray) {
         this.texts = textArray
@@ -36410,4 +36996,525 @@ module.exports = class Texts {
         return this.texts[this.textIndex++ % this.texts.length]
     }
 }
-},{}]},{},[17]);
+},{}],22:[function(require,module,exports){
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+var objectCreate = Object.create || objectCreatePolyfill
+var objectKeys = Object.keys || objectKeysPolyfill
+var bind = Function.prototype.bind || functionBindPolyfill
+
+function EventEmitter() {
+  if (!this._events || !Object.prototype.hasOwnProperty.call(this, '_events')) {
+    this._events = objectCreate(null);
+    this._eventsCount = 0;
+  }
+
+  this._maxListeners = this._maxListeners || undefined;
+}
+module.exports = EventEmitter;
+
+// Backwards-compat with node 0.10.x
+EventEmitter.EventEmitter = EventEmitter;
+
+EventEmitter.prototype._events = undefined;
+EventEmitter.prototype._maxListeners = undefined;
+
+// By default EventEmitters will print a warning if more than 10 listeners are
+// added to it. This is a useful default which helps finding memory leaks.
+var defaultMaxListeners = 10;
+
+var hasDefineProperty;
+try {
+  var o = {};
+  if (Object.defineProperty) Object.defineProperty(o, 'x', { value: 0 });
+  hasDefineProperty = o.x === 0;
+} catch (err) { hasDefineProperty = false }
+if (hasDefineProperty) {
+  Object.defineProperty(EventEmitter, 'defaultMaxListeners', {
+    enumerable: true,
+    get: function() {
+      return defaultMaxListeners;
+    },
+    set: function(arg) {
+      // check whether the input is a positive number (whose value is zero or
+      // greater and not a NaN).
+      if (typeof arg !== 'number' || arg < 0 || arg !== arg)
+        throw new TypeError('"defaultMaxListeners" must be a positive number');
+      defaultMaxListeners = arg;
+    }
+  });
+} else {
+  EventEmitter.defaultMaxListeners = defaultMaxListeners;
+}
+
+// Obviously not all Emitters should be limited to 10. This function allows
+// that to be increased. Set to zero for unlimited.
+EventEmitter.prototype.setMaxListeners = function setMaxListeners(n) {
+  if (typeof n !== 'number' || n < 0 || isNaN(n))
+    throw new TypeError('"n" argument must be a positive number');
+  this._maxListeners = n;
+  return this;
+};
+
+function $getMaxListeners(that) {
+  if (that._maxListeners === undefined)
+    return EventEmitter.defaultMaxListeners;
+  return that._maxListeners;
+}
+
+EventEmitter.prototype.getMaxListeners = function getMaxListeners() {
+  return $getMaxListeners(this);
+};
+
+// These standalone emit* functions are used to optimize calling of event
+// handlers for fast cases because emit() itself often has a variable number of
+// arguments and can be deoptimized because of that. These functions always have
+// the same number of arguments and thus do not get deoptimized, so the code
+// inside them can execute faster.
+function emitNone(handler, isFn, self) {
+  if (isFn)
+    handler.call(self);
+  else {
+    var len = handler.length;
+    var listeners = arrayClone(handler, len);
+    for (var i = 0; i < len; ++i)
+      listeners[i].call(self);
+  }
+}
+function emitOne(handler, isFn, self, arg1) {
+  if (isFn)
+    handler.call(self, arg1);
+  else {
+    var len = handler.length;
+    var listeners = arrayClone(handler, len);
+    for (var i = 0; i < len; ++i)
+      listeners[i].call(self, arg1);
+  }
+}
+function emitTwo(handler, isFn, self, arg1, arg2) {
+  if (isFn)
+    handler.call(self, arg1, arg2);
+  else {
+    var len = handler.length;
+    var listeners = arrayClone(handler, len);
+    for (var i = 0; i < len; ++i)
+      listeners[i].call(self, arg1, arg2);
+  }
+}
+function emitThree(handler, isFn, self, arg1, arg2, arg3) {
+  if (isFn)
+    handler.call(self, arg1, arg2, arg3);
+  else {
+    var len = handler.length;
+    var listeners = arrayClone(handler, len);
+    for (var i = 0; i < len; ++i)
+      listeners[i].call(self, arg1, arg2, arg3);
+  }
+}
+
+function emitMany(handler, isFn, self, args) {
+  if (isFn)
+    handler.apply(self, args);
+  else {
+    var len = handler.length;
+    var listeners = arrayClone(handler, len);
+    for (var i = 0; i < len; ++i)
+      listeners[i].apply(self, args);
+  }
+}
+
+EventEmitter.prototype.emit = function emit(type) {
+  var er, handler, len, args, i, events;
+  var doError = (type === 'error');
+
+  events = this._events;
+  if (events)
+    doError = (doError && events.error == null);
+  else if (!doError)
+    return false;
+
+  // If there is no 'error' event listener then throw.
+  if (doError) {
+    if (arguments.length > 1)
+      er = arguments[1];
+    if (er instanceof Error) {
+      throw er; // Unhandled 'error' event
+    } else {
+      // At least give some kind of context to the user
+      var err = new Error('Unhandled "error" event. (' + er + ')');
+      err.context = er;
+      throw err;
+    }
+    return false;
+  }
+
+  handler = events[type];
+
+  if (!handler)
+    return false;
+
+  var isFn = typeof handler === 'function';
+  len = arguments.length;
+  switch (len) {
+      // fast cases
+    case 1:
+      emitNone(handler, isFn, this);
+      break;
+    case 2:
+      emitOne(handler, isFn, this, arguments[1]);
+      break;
+    case 3:
+      emitTwo(handler, isFn, this, arguments[1], arguments[2]);
+      break;
+    case 4:
+      emitThree(handler, isFn, this, arguments[1], arguments[2], arguments[3]);
+      break;
+      // slower
+    default:
+      args = new Array(len - 1);
+      for (i = 1; i < len; i++)
+        args[i - 1] = arguments[i];
+      emitMany(handler, isFn, this, args);
+  }
+
+  return true;
+};
+
+function _addListener(target, type, listener, prepend) {
+  var m;
+  var events;
+  var existing;
+
+  if (typeof listener !== 'function')
+    throw new TypeError('"listener" argument must be a function');
+
+  events = target._events;
+  if (!events) {
+    events = target._events = objectCreate(null);
+    target._eventsCount = 0;
+  } else {
+    // To avoid recursion in the case that type === "newListener"! Before
+    // adding it to the listeners, first emit "newListener".
+    if (events.newListener) {
+      target.emit('newListener', type,
+          listener.listener ? listener.listener : listener);
+
+      // Re-assign `events` because a newListener handler could have caused the
+      // this._events to be assigned to a new object
+      events = target._events;
+    }
+    existing = events[type];
+  }
+
+  if (!existing) {
+    // Optimize the case of one listener. Don't need the extra array object.
+    existing = events[type] = listener;
+    ++target._eventsCount;
+  } else {
+    if (typeof existing === 'function') {
+      // Adding the second element, need to change to array.
+      existing = events[type] =
+          prepend ? [listener, existing] : [existing, listener];
+    } else {
+      // If we've already got an array, just append.
+      if (prepend) {
+        existing.unshift(listener);
+      } else {
+        existing.push(listener);
+      }
+    }
+
+    // Check for listener leak
+    if (!existing.warned) {
+      m = $getMaxListeners(target);
+      if (m && m > 0 && existing.length > m) {
+        existing.warned = true;
+        var w = new Error('Possible EventEmitter memory leak detected. ' +
+            existing.length + ' "' + String(type) + '" listeners ' +
+            'added. Use emitter.setMaxListeners() to ' +
+            'increase limit.');
+        w.name = 'MaxListenersExceededWarning';
+        w.emitter = target;
+        w.type = type;
+        w.count = existing.length;
+        if (typeof console === 'object' && console.warn) {
+          console.warn('%s: %s', w.name, w.message);
+        }
+      }
+    }
+  }
+
+  return target;
+}
+
+EventEmitter.prototype.addListener = function addListener(type, listener) {
+  return _addListener(this, type, listener, false);
+};
+
+EventEmitter.prototype.on = EventEmitter.prototype.addListener;
+
+EventEmitter.prototype.prependListener =
+    function prependListener(type, listener) {
+      return _addListener(this, type, listener, true);
+    };
+
+function onceWrapper() {
+  if (!this.fired) {
+    this.target.removeListener(this.type, this.wrapFn);
+    this.fired = true;
+    switch (arguments.length) {
+      case 0:
+        return this.listener.call(this.target);
+      case 1:
+        return this.listener.call(this.target, arguments[0]);
+      case 2:
+        return this.listener.call(this.target, arguments[0], arguments[1]);
+      case 3:
+        return this.listener.call(this.target, arguments[0], arguments[1],
+            arguments[2]);
+      default:
+        var args = new Array(arguments.length);
+        for (var i = 0; i < args.length; ++i)
+          args[i] = arguments[i];
+        this.listener.apply(this.target, args);
+    }
+  }
+}
+
+function _onceWrap(target, type, listener) {
+  var state = { fired: false, wrapFn: undefined, target: target, type: type, listener: listener };
+  var wrapped = bind.call(onceWrapper, state);
+  wrapped.listener = listener;
+  state.wrapFn = wrapped;
+  return wrapped;
+}
+
+EventEmitter.prototype.once = function once(type, listener) {
+  if (typeof listener !== 'function')
+    throw new TypeError('"listener" argument must be a function');
+  this.on(type, _onceWrap(this, type, listener));
+  return this;
+};
+
+EventEmitter.prototype.prependOnceListener =
+    function prependOnceListener(type, listener) {
+      if (typeof listener !== 'function')
+        throw new TypeError('"listener" argument must be a function');
+      this.prependListener(type, _onceWrap(this, type, listener));
+      return this;
+    };
+
+// Emits a 'removeListener' event if and only if the listener was removed.
+EventEmitter.prototype.removeListener =
+    function removeListener(type, listener) {
+      var list, events, position, i, originalListener;
+
+      if (typeof listener !== 'function')
+        throw new TypeError('"listener" argument must be a function');
+
+      events = this._events;
+      if (!events)
+        return this;
+
+      list = events[type];
+      if (!list)
+        return this;
+
+      if (list === listener || list.listener === listener) {
+        if (--this._eventsCount === 0)
+          this._events = objectCreate(null);
+        else {
+          delete events[type];
+          if (events.removeListener)
+            this.emit('removeListener', type, list.listener || listener);
+        }
+      } else if (typeof list !== 'function') {
+        position = -1;
+
+        for (i = list.length - 1; i >= 0; i--) {
+          if (list[i] === listener || list[i].listener === listener) {
+            originalListener = list[i].listener;
+            position = i;
+            break;
+          }
+        }
+
+        if (position < 0)
+          return this;
+
+        if (position === 0)
+          list.shift();
+        else
+          spliceOne(list, position);
+
+        if (list.length === 1)
+          events[type] = list[0];
+
+        if (events.removeListener)
+          this.emit('removeListener', type, originalListener || listener);
+      }
+
+      return this;
+    };
+
+EventEmitter.prototype.removeAllListeners =
+    function removeAllListeners(type) {
+      var listeners, events, i;
+
+      events = this._events;
+      if (!events)
+        return this;
+
+      // not listening for removeListener, no need to emit
+      if (!events.removeListener) {
+        if (arguments.length === 0) {
+          this._events = objectCreate(null);
+          this._eventsCount = 0;
+        } else if (events[type]) {
+          if (--this._eventsCount === 0)
+            this._events = objectCreate(null);
+          else
+            delete events[type];
+        }
+        return this;
+      }
+
+      // emit removeListener for all listeners on all events
+      if (arguments.length === 0) {
+        var keys = objectKeys(events);
+        var key;
+        for (i = 0; i < keys.length; ++i) {
+          key = keys[i];
+          if (key === 'removeListener') continue;
+          this.removeAllListeners(key);
+        }
+        this.removeAllListeners('removeListener');
+        this._events = objectCreate(null);
+        this._eventsCount = 0;
+        return this;
+      }
+
+      listeners = events[type];
+
+      if (typeof listeners === 'function') {
+        this.removeListener(type, listeners);
+      } else if (listeners) {
+        // LIFO order
+        for (i = listeners.length - 1; i >= 0; i--) {
+          this.removeListener(type, listeners[i]);
+        }
+      }
+
+      return this;
+    };
+
+EventEmitter.prototype.listeners = function listeners(type) {
+  var evlistener;
+  var ret;
+  var events = this._events;
+
+  if (!events)
+    ret = [];
+  else {
+    evlistener = events[type];
+    if (!evlistener)
+      ret = [];
+    else if (typeof evlistener === 'function')
+      ret = [evlistener.listener || evlistener];
+    else
+      ret = unwrapListeners(evlistener);
+  }
+
+  return ret;
+};
+
+EventEmitter.listenerCount = function(emitter, type) {
+  if (typeof emitter.listenerCount === 'function') {
+    return emitter.listenerCount(type);
+  } else {
+    return listenerCount.call(emitter, type);
+  }
+};
+
+EventEmitter.prototype.listenerCount = listenerCount;
+function listenerCount(type) {
+  var events = this._events;
+
+  if (events) {
+    var evlistener = events[type];
+
+    if (typeof evlistener === 'function') {
+      return 1;
+    } else if (evlistener) {
+      return evlistener.length;
+    }
+  }
+
+  return 0;
+}
+
+EventEmitter.prototype.eventNames = function eventNames() {
+  return this._eventsCount > 0 ? Reflect.ownKeys(this._events) : [];
+};
+
+// About 1.5x faster than the two-arg version of Array#splice().
+function spliceOne(list, index) {
+  for (var i = index, k = i + 1, n = list.length; k < n; i += 1, k += 1)
+    list[i] = list[k];
+  list.pop();
+}
+
+function arrayClone(arr, n) {
+  var copy = new Array(n);
+  for (var i = 0; i < n; ++i)
+    copy[i] = arr[i];
+  return copy;
+}
+
+function unwrapListeners(arr) {
+  var ret = new Array(arr.length);
+  for (var i = 0; i < ret.length; ++i) {
+    ret[i] = arr[i].listener || arr[i];
+  }
+  return ret;
+}
+
+function objectCreatePolyfill(proto) {
+  var F = function() {};
+  F.prototype = proto;
+  return new F;
+}
+function objectKeysPolyfill(obj) {
+  var keys = [];
+  for (var k in obj) if (Object.prototype.hasOwnProperty.call(obj, k)) {
+    keys.push(k);
+  }
+  return k;
+}
+function functionBindPolyfill(context) {
+  var fn = this;
+  return function () {
+    return fn.apply(context, arguments);
+  };
+}
+
+},{}]},{},[18]);
